@@ -6,7 +6,7 @@ RUN yarn global add @vue/cli
 
 RUN env
 
-COPY .npmrc package.json yarn.lock ./
+COPY package.json yarn.lock ./
 RUN yarn
 COPY . /app
 EXPOSE 8084
