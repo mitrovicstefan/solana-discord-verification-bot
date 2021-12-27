@@ -15,6 +15,9 @@ let allIntents = new Intents()
 allIntents.add(Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_PRESENCES)
 const client = new Client({ intents: allIntents });
 
+// Login to Discord with your client's token
+client.login(process.env.DISCORD_BOT_TOKEN);
+
 // Endpoint to get all hodlers - protect it if you'd like
 app.use(bodyParser.json())
 app.get('/getHodlers', async (req: Request, res: Response) => {
@@ -65,20 +68,17 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 		}
 	}
 
-  // Login to Discord with your client's token
-  await client.login(process.env.DISCORD_BOT_TOKEN);
-
-
   const username = discordName.split('#')[0]
   const discriminator = discordName.split('#')[1]
 
   // Update role
-  client.once('ready', async () => {
+  // client.on('ready', async () => {
     const myGuild = await client.guilds.cache.get(process.env.DISCORD_SERVER_ID)
     const role = await myGuild.roles.cache.find((r: any) => r.id === process.env.DISCORD_ROLE_ID)
     const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
     await doer.roles.add(role)
-  });
+    // await client.destroy()
+  // });
 
   fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
 

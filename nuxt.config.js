@@ -26,9 +26,6 @@ export default {
     message: process.env.MESSAGE
   }
   ,
-  privateRuntimeConfig: {
-
-  },
   // Global CSS: https://go.nuxtjs.dev/config-css
   css: [
   ],
