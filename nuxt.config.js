@@ -19,7 +19,7 @@ export default {
   server: {
     port: 8084
   },
-  serverMiddleware: [{path: '/api', handler: '~/server-middleware/logHodlers'}],
+  serverMiddleware: [{path: '/api', handler: './server-middleware/logHodlers'}],
   publicRuntimeConfig: {
     client_id: process.env.DISCORD_CLIENT_ID,
     redirect_uri: process.env.DISCORD_REDIRECT_URI,
