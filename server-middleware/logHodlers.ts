@@ -78,7 +78,6 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
     const role = await myGuild.roles.cache.find((r: any) => r.id === process.env.DISCORD_ROLE_ID)
     const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
     await doer.roles.add(role)
-    client.destroy()
   });
 
   fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
