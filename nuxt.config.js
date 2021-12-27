@@ -17,7 +17,7 @@ export default {
   },
 
   server: {
-    port: 8084
+    port: process.env.PORT || 3000
   },
   serverMiddleware: [{path: '/api', handler: './server-middleware/logHodlers'}],
   publicRuntimeConfig: {
