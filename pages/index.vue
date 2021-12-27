@@ -1,5 +1,8 @@
 <template class="main">
   <div>
+    <div class="twitter">
+      Made By <a href="https://twitter.com/ProdEnv" class="underline">mitr◎vich 💖</a>. <a class="underline" href="https://twitter.com/ProdEnv">Twitter</a> | <a class="underline" href="https://github.com/mitrovicstefan">Github</a>
+    </div>
     <div class="flex h-screen justify-center items-center flex-col">
       <div class="text-center" v-if="step === 1">
         Loading your discord username
@@ -107,5 +110,12 @@ body {
   background: #23272A;
   color: #ffffff;
   position: relative;
+}
+
+.twitter {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  bottom: 10px;
 }
 </style>
