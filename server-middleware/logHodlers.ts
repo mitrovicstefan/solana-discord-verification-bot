@@ -66,19 +66,18 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 				publicKey: publicKeyString
 			})
 		}
-	}
+	} else {
+    return res.sendStatus(401)
+  }
 
   const username = discordName.split('#')[0]
   const discriminator = discordName.split('#')[1]
 
   // Update role
-  // client.on('ready', async () => {
     const myGuild = await client.guilds.cache.get(process.env.DISCORD_SERVER_ID)
     const role = await myGuild.roles.cache.find((r: any) => r.id === process.env.DISCORD_ROLE_ID)
     const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
     await doer.roles.add(role)
-    // await client.destroy()
-  // });
 
   fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
 
