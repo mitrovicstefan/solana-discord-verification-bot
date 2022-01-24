@@ -25,7 +25,10 @@
         Review the message before signing and make sure that nothing else is requested except signature.
       </div>
       <div class="text-center" v-if="step === 5">
-        You're done! You can close this window now
+        You're verified! You can close this window now and flex your new discord power.
+      </div>
+      <div class="text-center" v-if="step === 6">
+        Unfortunately your wallet doesn't have the tokens required for validation.
       </div>
     </div>
   </div>
@@ -96,11 +99,18 @@ export default Vue.extend({
         // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
         publicKey: connection.publicKey.toString()
       })
+      if (res2.status == 200) {
+        this.step = 5 
+      }
     } catch (e) {
       console.log("API ERROR", e)
     }
-
-    this.step = 5
+    
+    // show error if failure
+    if (this.step == 4) {
+      this.step = 6
+    }
+    
   }
 })
 </script>

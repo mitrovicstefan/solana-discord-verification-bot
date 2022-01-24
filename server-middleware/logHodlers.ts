@@ -1,6 +1,7 @@
 const bodyParser = require('body-parser')
+const axios = require('axios')
 const app = require('express')()
-import {Request, Response} from 'express'
+import { Request, Response } from 'express'
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const fs = require('fs')
 const nacl = require('tweetnacl')
@@ -24,8 +25,45 @@ app.get('/getHodlers', async (req: Request, res: Response) => {
   return res.json(hodlerList)
 })
 
+const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
+  const response = await axios({
+    url: `https://api.mainnet-beta.solana.com`,
+    method: "post",
+    headers: { "Content-Type": "application/json" },
+    data: {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "getTokenAccountsByOwner",
+      params: [
+        walletAddress,
+        {
+          mint: tokenMintAddress,
+        },
+        {
+          encoding: "jsonParsed",
+        },
+      ],
+    },
+  });
+  if (
+    Array.isArray(response?.data?.result?.value) &&
+    response?.data?.result?.value?.length > 0 &&
+    response?.data?.result?.value[0]?.account?.data?.parsed?.info?.tokenAmount
+      ?.amount > 0
+  ) {
+    return (
+      Number(
+        response?.data?.result?.value[0]?.account?.data?.parsed?.info
+          ?.tokenAmount?.amount
+      ) / 1000000000
+    );
+  } else {
+    return 0;
+  }
+};
+
 app.post('/logHodlers', async (req: Request, res: Response) => {
-	const publicKeyString = req.body.publicKey
+  const publicKeyString = req.body.publicKey
   const signature = req.body.signature
   const message = process.env.MESSAGE
   const encodedMessage = new TextEncoder().encode(message)
@@ -34,39 +72,54 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // Validates signature sent from client
   const isValid = nacl.sign.detached.verify(encodedMessage, encryptedSignature, publicKey)
-  if(!isValid) {
+  if (!isValid) {
     return res.status(400)
   }
 
-	const discordName = req.body.discordName
-	let tokenList
+  const discordName = req.body.discordName
+  let tokenList
+  let splTokenBalance = 0
 
   // Parses all tokens from that public key
-	try {
-		tokenList = await getParsedNftAccountsByOwner({publicAddress: publicKeyString})
-	} catch (e) {
-		console.log("Error parsing NFTs", e)
-	}
+  try {
+    tokenList = await getParsedNftAccountsByOwner({ publicAddress: publicKeyString })
+  } catch (e) {
+    console.log("Error parsing NFTs", e)
+  }
 
   // Basic ass way to find matched NFTs compared to the mint list ( PRs welcome <3 )
-	let matched = []
-	for (let item of tokenList) {
-		if(mint_list.includes(item.mint)) matched.push(item)
-	}
+  let matched = []
+  for (let item of tokenList) {
+    if (mint_list.includes(item.mint)) matched.push(item)
+  }
+
+  // Optionally check for spl-tokens matching mint IDs if NFTs were not found
+  if (matched.length == 0) {
+    for (let item of mint_list) {
+      try {
+        splTokenBalance = await getTokenBalance(publicKeyString, item)
+        if (splTokenBalance > 0) {
+          break
+        }
+      } catch (e) {
+        console.log("Error getting spl token balance", e)
+      }
+    }
+  }
 
   // If matched NFTs are not empty and it's not already in the JSON push it
-	if(matched.length !== 0) {
-		let hasHodler = false
-		for (let n of hodlerList) {
-			if(n.discordName === discordName) hasHodler = true
-		}
-		if(!hasHodler) {
-			hodlerList.push({
-				discordName: discordName,
-				publicKey: publicKeyString
-			})
-		}
-	} else {
+  if (matched.length !== 0 || splTokenBalance > 0) {
+    let hasHodler = false
+    for (let n of hodlerList) {
+      if (n.discordName === discordName) hasHodler = true
+    }
+    if (!hasHodler) {
+      hodlerList.push({
+        discordName: discordName,
+        publicKey: publicKeyString
+      })
+    }
+  } else {
     return res.sendStatus(401)
   }
 
@@ -74,14 +127,14 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   const discriminator = discordName.split('#')[1]
 
   // Update role
-    const myGuild = await client.guilds.cache.get(process.env.DISCORD_SERVER_ID)
-    const role = await myGuild.roles.cache.find((r: any) => r.id === process.env.DISCORD_ROLE_ID)
-    const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
-    await doer.roles.add(role)
+  const myGuild = await client.guilds.cache.get(process.env.DISCORD_SERVER_ID)
+  const role = await myGuild.roles.cache.find((r: any) => r.id === process.env.DISCORD_ROLE_ID)
+  const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
+  await doer.roles.add(role)
 
   fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
 
-	res.sendStatus(200)
+  res.sendStatus(200)
 })
 
 app.get('/reloadHolders', async (req: Request, res: Response) => {
@@ -89,7 +142,7 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
     const holder = hodlerList[n]
     let tokenList
     try {
-      tokenList = await getParsedNftAccountsByOwner({publicAddress: holder.publicKey})
+      tokenList = await getParsedNftAccountsByOwner({ publicAddress: holder.publicKey })
     } catch (e) {
       res.status(400).send("There was a problem with parsing NFTs")
       console.log("Error parsing NFTs", e)
@@ -97,10 +150,10 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
 
     let matched = []
     for (let item of tokenList) {
-      if(mint_list.includes(item.mint)) matched.push(item)
+      if (mint_list.includes(item.mint)) matched.push(item)
     }
 
-    if(matched.length === 0) {
+    if (matched.length === 0) {
       hodlerList.splice(n, 1)
       const username = holder.discordName.split('#')[0]
       const discriminator = holder.discordName.split('#')[1]
