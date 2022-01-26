@@ -9,7 +9,7 @@ RUN env
 ENV HOST=0.0.0.0
 
 COPY package.json yarn.lock ./
-RUN yarn
 COPY . /app
+RUN yarn
 EXPOSE 3000
 CMD ["yarn","start"]
