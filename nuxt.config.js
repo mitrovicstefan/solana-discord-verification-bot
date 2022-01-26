@@ -1,7 +1,7 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: 'authorization-bot',
+    title: 'NFT 4 Cause Discord Verification',
     htmlAttrs: {
       lang: 'en'
     },
@@ -19,7 +19,7 @@ export default {
   server: {
     port: process.env.PORT || 3000
   },
-  serverMiddleware: [{path: '/api', handler: './server-middleware/logHodlers'}],
+  serverMiddleware: [{ path: '/api', handler: './server-middleware/logHodlers' }],
   publicRuntimeConfig: {
     client_id: process.env.DISCORD_CLIENT_ID,
     redirect_uri: process.env.DISCORD_REDIRECT_URI,
