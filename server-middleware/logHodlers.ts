@@ -8,7 +8,6 @@ const nacl = require('tweetnacl')
 const { PublicKey } = require('@solana/web3.js')
 const { Client, Intents } = require('discord.js')
 
-const mint_list = require('./mint_list.json')
 const hodlerList = require('./hodlers.json')
 
 // Create a new client instance
@@ -55,7 +54,7 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
       Number(
         response?.data?.result?.value[0]?.account?.data?.parsed?.info
           ?.tokenAmount?.amount
-      ) / 1000000000
+      ) / 1000000
     );
   } else {
     return 0;
@@ -90,20 +89,20 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   // Basic ass way to find matched NFTs compared to the mint list ( PRs welcome <3 )
   let matched = []
   for (let item of tokenList) {
-    if (mint_list.includes(item.mint)) matched.push(item)
+    if (item.updateAuthority === process.env.UPDATE_AUTHORITY) {
+      console.log("item matches expected update authority: " + item.mint)
+      matched.push(item)
+      break
+    }
   }
 
   // Optionally check for spl-tokens matching mint IDs if NFTs were not found
   if (matched.length == 0) {
-    for (let item of mint_list) {
-      try {
-        splTokenBalance = await getTokenBalance(publicKeyString, item)
-        if (splTokenBalance > 0) {
-          break
-        }
-      } catch (e) {
-        console.log("Error getting spl token balance", e)
-      }
+    try {
+      splTokenBalance = await getTokenBalance(publicKeyString, process.env.SPL_TOKEN)
+      console.log("spl token balance: " + splTokenBalance)
+    } catch (e) {
+      console.log("Error getting spl token balance", e)
     }
   }
 
@@ -114,12 +113,14 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
       if (n.discordName === discordName) hasHodler = true
     }
     if (!hasHodler) {
+      console.log("adding to hodler list: " + publicKeyString)
       hodlerList.push({
         discordName: discordName,
         publicKey: publicKeyString
       })
     }
   } else {
+    console.log("user not verified: " + publicKeyString)
     return res.sendStatus(401)
   }
 
@@ -170,7 +171,11 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
 
     let matched = []
     for (let item of tokenList) {
-      if (mint_list.includes(item.mint)) matched.push(item)
+      if (item.updateAuthority === process.env.UPDATE_AUTHORITY) {
+        console.log("item matches expected update authority: " + item.mint)
+        matched.push(item)
+        break
+      }
     }
 
     if (matched.length === 0) {

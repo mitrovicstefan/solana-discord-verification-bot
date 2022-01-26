@@ -110,7 +110,7 @@ export default Vue.extend({
       }
     } catch (e) {
       console.log("API ERROR", e)
-      this.step = 7 
+      this.step = 7
     }
     
     // show error if failure
