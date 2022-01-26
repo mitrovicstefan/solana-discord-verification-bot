@@ -127,12 +127,32 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   const discriminator = discordName.split('#')[1]
 
   // Update role
+  console.log("Looking up server with ID: " + process.env.DISCORD_SERVER_ID)
   const myGuild = await client.guilds.cache.get(process.env.DISCORD_SERVER_ID)
+  if (!myGuild) {
+    console.log("error retrieving server information")
+    return res.sendStatus(500)
+  }
+  console.log("Looking up role with ID: " + process.env.DISCORD_ROLE_ID)
   const role = await myGuild.roles.cache.find((r: any) => r.id === process.env.DISCORD_ROLE_ID)
+  if (!role) {
+    console.log("error retrieving role information")
+    return res.sendStatus(500)
+  }
   const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
+  if (!doer) {
+    console.log("error retrieving user information")
+    return res.sendStatus(500)
+  }
   await doer.roles.add(role)
+  console.log("successfully added user role")
 
-  fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
+  try {
+    fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
+    console.log("successfully updated hodler list")
+  } catch (e) {
+    console.log("error writing to file system", e)
+  }
 
   res.sendStatus(200)
 })

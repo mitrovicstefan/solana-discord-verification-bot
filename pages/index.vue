@@ -30,6 +30,9 @@
       <div class="text-center" v-if="step === 6">
         Unfortunately your wallet doesn't have the tokens required for validation.
       </div>
+      <div class="text-center" v-if="step === 7">
+        There is currently a problem communicating with the Discord API. Try again later.
+      </div>
     </div>
   </div>
 </template>
@@ -99,11 +102,15 @@ export default Vue.extend({
         // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
         publicKey: connection.publicKey.toString()
       })
+      console.log("Status:" + res2.status)
       if (res2.status == 200) {
         this.step = 5 
+      } else if (res2.status == 500) { 
+        this.step = 7 
       }
     } catch (e) {
       console.log("API ERROR", e)
+      this.step = 7 
     }
     
     // show error if failure
