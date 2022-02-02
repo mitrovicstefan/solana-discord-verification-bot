@@ -42,7 +42,7 @@ Configuration JSON for IBM Cloud Object Storage. If COS configuration is provide
 #### How to get IBM Cloud Object Storage
 Good news, it's free! There is [great documentation](https://cloud.ibm.com/docs/cloud-object-storage/about-cos.html#about-ibm-cloud-object-storage) with full details on how to register for IBM Cloud and get a Cloud Object Storage instance. High level steps are:
 
-- Register for a new account [cloud.ibm.com](https://cloud.ibm.com)
+- Register for a new [cloud.ibm.com](https://cloud.ibm.com) account
 - Navigate to the [Cloud Object Storage console](https://cloud.ibm.com/objectstorage/)
 - Create a COS service instance
 - Create an API key to access the COS service instance
