@@ -12,8 +12,22 @@ const hodlerList = require('./hodlers.json')
 
 // Create a new client instance
 let allIntents = new Intents()
-allIntents.add(Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_PRESENCES)
+allIntents.add(Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_PRESENCES, Intents.FLAGS.GUILD_MESSAGES)
 const client = new Client({ intents: allIntents });
+
+/// ADDING COMMAND
+
+// Set the prefix
+let prefix = "!";
+let redirect_url = process.env.DISCORD_REDIRECT_URI;
+client.on("messageCreate", (message) => {
+  // Exit and stop if the prefix is not there or if user is a bot
+  if (!message.content.startsWith(prefix) || message.author.bot) return;
+
+  if (message.content.startsWith(`${prefix}verify`)) {
+    message.channel.send(`Hey ${message.author}, Visit ${redirect_url} to gain your special role!`);
+  }
+});
 
 // Login to Discord with your client's token
 client.login(process.env.DISCORD_BOT_TOKEN);
