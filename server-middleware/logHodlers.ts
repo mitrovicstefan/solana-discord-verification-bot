@@ -2,20 +2,21 @@ const bodyParser = require('body-parser')
 const axios = require('axios')
 const app = require('express')()
 import { Request, Response } from 'express'
+import { initializeStorage, read, write } from './storage/persist'
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const fs = require('fs')
 const nacl = require('tweetnacl')
 const { PublicKey } = require('@solana/web3.js')
 const { Client, Intents } = require('discord.js')
 
-const hodlerList = require('./hodlers.json')
+/**
+ * Configure the Discord client
+ */
 
 // Create a new client instance
 let allIntents = new Intents()
 allIntents.add(Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_PRESENCES, Intents.FLAGS.GUILD_MESSAGES)
 const client = new Client({ intents: allIntents });
-
-/// ADDING COMMAND
 
 // Set the prefix
 let prefix = "!";
@@ -32,12 +33,26 @@ client.on("messageCreate", (message: { content: { startsWith: (prefix: string) =
 // Login to Discord with your client's token
 client.login(process.env.DISCORD_BOT_TOKEN);
 
-// Endpoint to get all hodlers - protect it if you'd like
-app.use(bodyParser.json())
-app.get('/getHodlers', async (req: Request, res: Response) => {
-  return res.json(hodlerList)
-})
+/**
+ * Configure storage layer
+ */
 
+// storage path for hodler data
+const hodlerFilePath = `./server-middleware/hodlers-${process.env.DISCORD_SERVER_ID}.json`
+initializeStorage()
+
+
+/**
+ * Helper methods
+ */
+
+// retreives the current hodler list in JSON format
+const getHodlerList = async () => {
+  var hodlerListStr = await read(hodlerFilePath)
+  return JSON.parse((hodlerListStr != "") ? hodlerListStr : "[]")
+}
+
+// retrieves the token balance
 const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   const response = await axios({
     url: `https://api.mainnet-beta.solana.com`,
@@ -75,6 +90,17 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   }
 };
 
+/**
+ * API endpoint implementation
+ */
+
+// Endpoint to get all hodlers - protect it if you'd like
+app.use(bodyParser.json())
+app.get('/getHodlers', async (req: Request, res: Response) => {
+  return res.json(await getHodlerList())
+})
+
+// Endpoint to validate a hodler and add role 
 app.post('/logHodlers', async (req: Request, res: Response) => {
   const publicKeyString = req.body.publicKey
   const signature = req.body.signature
@@ -123,6 +149,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   // If matched NFTs are not empty and it's not already in the JSON push it
   if (matched.length !== 0 || splTokenBalance > 0) {
     let hasHodler = false
+    var hodlerList = await getHodlerList()
     for (let n of hodlerList) {
       if (n.discordName === discordName) hasHodler = true
     }
@@ -162,17 +189,14 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   await doer.roles.add(role)
   console.log("successfully added user role")
 
-  try {
-    fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
-    console.log("successfully updated hodler list")
-  } catch (e) {
-    console.log("error writing to file system", e)
-  }
-
+  // write result and return successfully
+  await write(hodlerFilePath, JSON.stringify(hodlerList))
   res.sendStatus(200)
 })
 
+// Endpoint to validate current hodlers
 app.get('/reloadHolders', async (req: Request, res: Response) => {
+  var hodlerList = await getHodlerList()
   for (let n in hodlerList) {
     const holder = hodlerList[n]
     let tokenList
@@ -203,8 +227,8 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
       await doer.roles.remove(role)
     }
 
-    fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
-
+    // write file and return successfully
+    await write(hodlerFilePath, JSON.stringify(hodlerList))
     res.status(200).send("Removed all paperhands b0ss")
   }
 })
