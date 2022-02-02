@@ -20,7 +20,7 @@ const client = new Client({ intents: allIntents });
 // Set the prefix
 let prefix = "!";
 let redirect_url = process.env.DISCORD_REDIRECT_URI;
-client.on("messageCreate", (message) => {
+client.on("messageCreate", (message: {content: { startsWith: (prefix: string) => boolean }, channel: any, author: any, }) => {
   // Exit and stop if the prefix is not there or if user is a bot
   if (!message.content.startsWith(prefix) || message.author.bot) return;
 
