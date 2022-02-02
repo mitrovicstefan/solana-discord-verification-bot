@@ -1,7 +1,7 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: 'authorization-bot',
+    title: process.env.PROJECT_NAME || 'authorization-bot',
     htmlAttrs: {
       lang: 'en'
     },
