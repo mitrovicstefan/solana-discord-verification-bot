@@ -56,9 +56,9 @@ export default Vue.extend({
   async mounted() {
 
     // Retrieve the project config based on wildcard path
+    var projectName = this.$route.path.replaceAll("/","")
     var projectConfig
     try {
-      var projectName = this.$route.path.replaceAll("/","")
       projectConfig = await axios.get('/api/getConfig?project=' + projectName)
     } catch (e) {
       console.log(e) 
@@ -115,6 +115,7 @@ export default Vue.extend({
     let res2
     try {
       res2 = await axios.post('/api/logHodlers', {
+        projectName: projectName,
         discordName: this.discordUsername,
         signature: signedMessage.signature,
         // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
