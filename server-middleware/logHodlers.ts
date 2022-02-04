@@ -27,7 +27,7 @@ async function getDiscordClient(projectName: any) {
   }
 
   // get the config
-  var config = getConfig(projectName)
+  var config = await getConfig(projectName)
 
   // Create a new client instance
   let allIntents = new Intents()
@@ -86,9 +86,9 @@ function getHodlerFilePath(name: any) {
 }
 
 // retrieve configuration from filesystem
-function getConfig(name: any) {
+async function getConfig(name: any) {
   try {
-    var contents = fs.readFileSync(`./config/prod-${name}.json`, { encoding: 'utf8', flag: 'r' })
+    var contents = await read(`./config/prod-${name}.json`)
     return JSON.parse(contents)
   } catch (e) {
     console.log("error reading file", e)
@@ -143,7 +143,7 @@ app.use(bodyParser.json())
 
 // Retrieves the clientside config for discord validation
 app.get('/getConfig', async (req: Request, res: Response) => {
-  var config = getConfig(req.query["project"])
+  var config = await getConfig(req.query["project"])
   if (config) {
     return res.json({
       client_id: config.discord_client_id,
@@ -163,7 +163,7 @@ app.get('/getHodlers', async (req: Request, res: Response) => {
 app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // retrieve config and ensure it is valid
-  const config = getConfig(req.body.projectName)
+  const config = await getConfig(req.body.projectName)
   if (!config) {
     return res.sendStatus(404)
   }
@@ -268,7 +268,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 app.get('/reloadHolders', async (req: Request, res: Response) => {
 
   // retrieve config and ensure it is valid
-  const config = getConfig(req.query["project"])
+  const config = await getConfig(req.query["project"])
   if (!config) {
     return res.sendStatus(404)
   }
