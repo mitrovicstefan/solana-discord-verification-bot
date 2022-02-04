@@ -75,20 +75,24 @@ initializeStorage()
  * Helper methods
  */
 
+function getHodlerFilePath(name: any) {
+  return `./server-middleware/hodlers-${name}.json`
+}
+
+function getConfigFilePath(name: any) {
+  return `./config/prod-${name}.json`
+}
+
 // retreives the current hodler list in JSON format
 const getHodlerList = async (name: any) => {
   var hodlerListStr = await read(getHodlerFilePath(name))
   return JSON.parse((hodlerListStr != "") ? hodlerListStr : "[]")
 }
 
-function getHodlerFilePath(name: any) {
-  return `./server-middleware/hodlers-${name}.json`
-}
-
 // retrieve configuration from filesystem
 async function getConfig(name: any) {
   try {
-    var contents = await read(`./config/prod-${name}.json`)
+    var contents = await read(getConfigFilePath(name))
     return JSON.parse(contents)
   } catch (e) {
     console.log("error reading file", e)
@@ -134,6 +138,44 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   }
 };
 
+// method to determine if wallet address is verified to hold resources
+const isHolderVerified = async (walletAddress: string, config: any) => {
+  let tokenList
+  let splTokenBalance = 0
+
+  // Parses all tokens from that public key
+  try {
+    tokenList = await getParsedNftAccountsByOwner({ publicAddress: walletAddress })
+  } catch (e) {
+    console.log("Error parsing NFTs", e)
+  }
+
+  // Basic ass way to find matched NFTs compared to the mint list ( PRs welcome <3 )
+  let matched = []
+  for (let item of tokenList) {
+    if (item.updateAuthority === config.update_authority) {
+      console.log(`hodler ${walletAddress} item ${item.mint} matches expected update authority`)
+      matched.push(item)
+      break
+    }
+  }
+
+  // Optionally check for spl-tokens matching mint IDs if NFTs were not found
+  if (matched.length == 0) {
+    try {
+      splTokenBalance = await getTokenBalance(walletAddress, config.spl_token)
+      console.log(`hodler ${walletAddress} spl token balance: ${splTokenBalance}`)
+    } catch (e) {
+      console.log("Error getting spl token balance", e)
+    }
+  }
+
+  // print result and return
+  var isVerified = matched.length > 0 || splTokenBalance > 0
+  console.log(`hodler ${walletAddress} verification status: ${isVerified}`)
+  return isVerified
+}
+
 /**
  * API endpoint implementation
  */
@@ -156,7 +198,11 @@ app.get('/getConfig', async (req: Request, res: Response) => {
 
 // Endpoint to get all hodlers - protect it if you'd like
 app.get('/getHodlers', async (req: Request, res: Response) => {
-  return res.json(await getHodlerList(req.query["project"]))
+  var config = await getConfig(req.query["project"])
+  if (config) {
+    return res.json(await getHodlerList(req.query["project"]))
+  }
+  return res.sendStatus(404)
 })
 
 // Endpoint to validate a hodler and add role 
@@ -181,39 +227,11 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
     return res.sendStatus(400)
   }
 
+  // store the discord name from the body
   const discordName = req.body.discordName
-  let tokenList
-  let splTokenBalance = 0
-
-  // Parses all tokens from that public key
-  try {
-    tokenList = await getParsedNftAccountsByOwner({ publicAddress: publicKeyString })
-  } catch (e) {
-    console.log("Error parsing NFTs", e)
-  }
-
-  // Basic ass way to find matched NFTs compared to the mint list ( PRs welcome <3 )
-  let matched = []
-  for (let item of tokenList) {
-    if (item.updateAuthority === config.update_authority) {
-      console.log("item matches expected update authority: " + item.mint)
-      matched.push(item)
-      break
-    }
-  }
-
-  // Optionally check for spl-tokens matching mint IDs if NFTs were not found
-  if (matched.length == 0) {
-    try {
-      splTokenBalance = await getTokenBalance(publicKeyString, config.spl_token)
-      console.log("spl token balance: " + splTokenBalance)
-    } catch (e) {
-      console.log("Error getting spl token balance", e)
-    }
-  }
 
   // If matched NFTs are not empty and it's not already in the JSON push it
-  if (matched.length !== 0 || splTokenBalance > 0) {
+  if (await isHolderVerified(publicKeyString, config)) {
     let hasHodler = false
     var hodlerList = await getHodlerList(req.body.projectName)
     for (let n of hodlerList) {
@@ -239,13 +257,11 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   }
 
   // Update role
-  console.log("Looking up server with ID: " + config.discord_server_id)
   const myGuild = await client.guilds.cache.get(config.discord_server_id)
   if (!myGuild) {
     console.log("error retrieving server information")
     return res.sendStatus(500)
   }
-  console.log("Looking up role with ID: " + config.discord_role_id)
   const role = await myGuild.roles.cache.find((r: any) => r.id === config.discord_role_id)
   if (!role) {
     console.log("error retrieving role information")
@@ -273,46 +289,64 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
     return res.sendStatus(404)
   }
 
+  // only allow reload on given interval
+  var reloadIntervalMillis = parseInt((process.env.RELOAD_INTERVAL_MINUTES) ? process.env.RELOAD_INTERVAL_MINUTES : "0") * 60 * 1000
+  var lastReloadMillis = (config.lastReload) ? config.lastReload : 0
+  var lastReloadElapsed = Date.now() - lastReloadMillis
+  console.log(`last reload was ${lastReloadElapsed}ms ago`)
+  if (lastReloadElapsed < reloadIntervalMillis) {
+    console.log(`reload not yet required`)
+    return res.sendStatus(200)
+  }
+
+  // retrieve discord client
+  const client = await getDiscordClient(req.query["project"])
+  if (!client) {
+    return res.sendStatus(404)
+  }
+
   // iterate the hodler list
   var hodlerList = await getHodlerList(req.query["project"])
   for (let n in hodlerList) {
+
+    // remove access if no matches
     const holder = hodlerList[n]
-    let tokenList
-    try {
-      tokenList = await getParsedNftAccountsByOwner({ publicAddress: holder.publicKey })
-    } catch (e) {
-      res.status(400).send("There was a problem with parsing NFTs")
-      console.log("Error parsing NFTs", e)
-    }
+    if (!await isHolderVerified(holder.publicKey, config)) {
 
-    let matched = []
-    for (let item of tokenList) {
-      if (item.updateAuthority === config.update_authority) {
-        console.log("item matches expected update authority: " + item.mint)
-        matched.push(item)
-        break
-      }
-    }
-
-    if (matched.length === 0) {
+      // parse the discord address to remove
+      console.log(`address is no longer holding expected tokens: ${holder.publicKey}`)
       hodlerList.splice(n, 1)
       const username = holder.discordName.split('#')[0]
       const discriminator = holder.discordName.split('#')[1]
-      const client = await getDiscordClient(req.query["project"])
-      if (!client) {
-        return res.sendStatus(404)
-      }
 
+      // remove role from discord user
       const myGuild = await client.guilds.cache.get(config.discord_server_id)
+      if (!myGuild) {
+        console.log("error retrieving server information")
+        return res.sendStatus(500)
+      }
       const role = await myGuild.roles.cache.find((r: any) => r.id === config.discord_role_id)
+      if (!role) {
+        console.log("error retrieving role information")
+        return res.sendStatus(500)
+      }
       const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
+      if (!doer) {
+        console.log("error retrieving user information")
+        return res.sendStatus(500)
+      }
       await doer.roles.remove(role)
     }
-
-    // write file and return successfully
-    await write(getHodlerFilePath(req.query["project"]), JSON.stringify(hodlerList))
-    res.status(200).send("Removed all paperhands b0ss")
   }
+
+  // update the config with current timestamp
+  config.lastReload = Date.now()
+  await write(getConfigFilePath(req.query["project"]), JSON.stringify(config))
+
+  // update the hodler file and return successfully
+  await write(getHodlerFilePath(req.query["project"]), JSON.stringify(hodlerList))
+  res.sendStatus(200)
 })
 
+// export the app
 module.exports = app
