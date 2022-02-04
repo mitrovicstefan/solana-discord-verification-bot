@@ -36,6 +36,23 @@ Your discord server ID.
 DISCORD_ROLE_ID
 ID of the role inside your discord server. [Here's how to find it](https://ozonprice.com/blog/discord-get-role-id/)
 
+### COS_CONFIG
+Configuration JSON for IBM Cloud Object Storage. If COS configuration is provided, files will be stored on IBM Cloud instead of the local filesystem.
+
+#### How to get IBM Cloud Object Storage
+Good news, it's free! There is [great documentation](https://cloud.ibm.com/docs/cloud-object-storage/about-cos.html#about-ibm-cloud-object-storage) with full details on how to register for IBM Cloud and get a Cloud Object Storage instance. High level steps are:
+
+- Register for a new [cloud.ibm.com](https://cloud.ibm.com) account
+- Navigate to the [Cloud Object Storage console](https://cloud.ibm.com/objectstorage/)
+- Create a COS service instance
+- Create an API key to access the COS service instance
+- Create a COS bucket in the COS service instance
+
+Once you have those steps complete, just fill in the configuration template below. Note, I used the `us-south` endpoint in the example below but you can use any of the global endpoints in the config.
+
+#### Sample configuration value
+If you want to use COS, use the following format but with your own data `COS_CONFIG={"instanceID":"<your COS instance CRN>","apiKey":"<your COS API key>","bucket":"<your COS bucket name>","endpoint":"s3.us-south.cloud-object-storage.appdomain.cloud","storageClass":"us-south-standard"}`
+
 ## Deployment
 
 Guide soon. You can deploy it on vercel, your own server or anywhere else.

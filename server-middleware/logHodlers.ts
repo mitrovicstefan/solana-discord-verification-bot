@@ -2,32 +2,16 @@ const bodyParser = require('body-parser')
 const axios = require('axios')
 const app = require('express')()
 import { Request, Response } from 'express'
+import { initializeStorage, read, write } from './storage/persist'
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const fs = require('fs')
 const nacl = require('tweetnacl')
 const { PublicKey } = require('@solana/web3.js')
 const { Client, Intents } = require('discord.js')
 
-const hodlerList = require('./hodlers.json')
-
-// Endpoint to get all hodlers - protect it if you'd like
-app.use(bodyParser.json())
-app.get('/getHodlers', async (req: Request, res: Response) => {
-  return res.json(hodlerList)
-})
-
-// Retrieves the clientside config for discord validation
-app.get('/getConfig', async (req: Request, res: Response) => {
-  var config = getConfig(req.query["project"])
-  if (config) {
-    return res.json({
-      client_id: config.discord_client_id,
-      redirect_uri: config.discord_redirect_url,
-      message: config.message
-    })
-  }
-  return res.sendStatus(404)
-})
+/**
+ * Configure the Discord client
+ */
 
 // Cache of discord clients available on this server
 const discordClients = new Map<any, any>()
@@ -81,6 +65,26 @@ async function getDiscordClient(projectName: any) {
   return newClient
 }
 
+/**
+ * Configure storage layer
+ */
+initializeStorage()
+
+
+/**
+ * Helper methods
+ */
+
+// retreives the current hodler list in JSON format
+const getHodlerList = async (name: any) => {
+  var hodlerListStr = await read(getHodlerFilePath(name))
+  return JSON.parse((hodlerListStr != "") ? hodlerListStr : "[]")
+}
+
+function getHodlerFilePath(name: any) {
+  return `./server-middleware/hodlers-${name}.json`
+}
+
 // retrieve configuration from filesystem
 function getConfig(name: any) {
   try {
@@ -92,6 +96,7 @@ function getConfig(name: any) {
   return null
 }
 
+// retrieves the token balance
 const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   const response = await axios({
     url: `https://api.mainnet-beta.solana.com`,
@@ -129,6 +134,32 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   }
 };
 
+/**
+ * API endpoint implementation
+ */
+
+// Configure the middleware to parse JSON
+app.use(bodyParser.json())
+
+// Retrieves the clientside config for discord validation
+app.get('/getConfig', async (req: Request, res: Response) => {
+  var config = getConfig(req.query["project"])
+  if (config) {
+    return res.json({
+      client_id: config.discord_client_id,
+      redirect_uri: config.discord_redirect_url,
+      message: config.message
+    })
+  }
+  return res.sendStatus(404)
+})
+
+// Endpoint to get all hodlers - protect it if you'd like
+app.get('/getHodlers', async (req: Request, res: Response) => {
+  return res.json(await getHodlerList(req.query["project"]))
+})
+
+// Endpoint to validate a hodler and add role 
 app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // retrieve config and ensure it is valid
@@ -184,6 +215,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   // If matched NFTs are not empty and it's not already in the JSON push it
   if (matched.length !== 0 || splTokenBalance > 0) {
     let hasHodler = false
+    var hodlerList = await getHodlerList(req.body.projectName)
     for (let n of hodlerList) {
       if (n.discordName === discordName) hasHodler = true
     }
@@ -227,16 +259,12 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   await doer.roles.add(role)
   console.log("successfully added user role")
 
-  try {
-    fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
-    console.log("successfully updated hodler list")
-  } catch (e) {
-    console.log("error writing to file system", e)
-  }
-
+  // write result and return successfully
+  await write(getHodlerFilePath(req.body.projectName), JSON.stringify(hodlerList))
   res.sendStatus(200)
 })
 
+// Endpoint to validate current hodlers
 app.get('/reloadHolders', async (req: Request, res: Response) => {
 
   // retrieve config and ensure it is valid
@@ -246,6 +274,7 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
   }
 
   // iterate the hodler list
+  var hodlerList = await getHodlerList(req.query["project"])
   for (let n in hodlerList) {
     const holder = hodlerList[n]
     let tokenList
@@ -280,8 +309,8 @@ app.get('/reloadHolders', async (req: Request, res: Response) => {
       await doer.roles.remove(role)
     }
 
-    fs.writeFileSync('./server-middleware/hodlers.json', JSON.stringify(hodlerList))
-
+    // write file and return successfully
+    await write(getHodlerFilePath(req.query["project"]), JSON.stringify(hodlerList))
     res.status(200).send("Removed all paperhands b0ss")
   }
 })
