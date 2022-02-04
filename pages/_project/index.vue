@@ -33,6 +33,9 @@
       <div class="text-center" v-if="step === 7">
         There is currently a problem communicating with the Discord API. Try again later.
       </div>
+      <div class="text-center" v-if="step === 8">
+        Project not found.
+      </div>
     </div>
   </div>
 </template>
@@ -52,12 +55,27 @@ export default Vue.extend({
 
   async mounted() {
 
+    // Retrieve the project config based on wildcard path
+    var projectConfig
+    try {
+      var projectName = this.$route.path.replaceAll("/","")
+      projectConfig = await axios.get('/api/getConfig?project=' + projectName)
+    } catch (e) {
+      console.log(e) 
+    }
+
+    // return not found if the project config is empty
+    if (!projectConfig) {
+      this.step = 8
+      return
+    }
+
     // Get discord bearer token from url hash params
     const url_params: {access_token?: string} = this.$route.hash.split("&")
       .map(v => v.split("="))
       .reduce( (pre, [key, value]) => ({ ...pre, [key]: value }), {})
     if (!url_params.access_token) {
-      const url = `https://discord.com/api/oauth2/authorize?client_id=${this.$config.client_id}&redirect_uri=${this.$config.redirect_uri}&response_type=token&scope=identify`
+      const url = `https://discord.com/api/oauth2/authorize?client_id=${projectConfig.data.client_id}&redirect_uri=${projectConfig.data.redirect_uri}&response_type=token&scope=identify`
       window.location.href = url
     }
 
@@ -89,7 +107,7 @@ export default Vue.extend({
     this.step = 4
 
     // Signs message to verify authority
-    const message = this.$config.message
+    const message = projectConfig.data.message
     const encodedMessage = new TextEncoder().encode(message)
     const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
 

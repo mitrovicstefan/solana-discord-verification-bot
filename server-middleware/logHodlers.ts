@@ -38,6 +38,22 @@ app.get('/getHodlers', async (req: Request, res: Response) => {
   return res.json(hodlerList)
 })
 
+// Retrieves the clientside config for discord validation
+app.get('/getConfig', async (req: Request, res: Response) => {
+  try {
+    var contents = fs.readFileSync(`./config/prod-${req.query["project"]}.json`, { encoding: 'utf8', flag: 'r' })
+    var contentJSON = JSON.parse(contents)
+    return res.json({
+      client_id: contentJSON.discord_client_id,
+      redirect_uri: contentJSON.discord_redirect_url,
+      message: contentJSON.message
+    })
+  } catch (e) {
+    console.log("error reading file", e)
+  }
+  return res.sendStatus(404)
+})
+
 const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   const response = await axios({
     url: `https://api.mainnet-beta.solana.com`,
