@@ -83,6 +83,14 @@ function getConfigFilePath(name: any) {
   return `./config/prod-${name}.json`
 }
 
+// validates signature of a given message
+function isSignatureValid(publicKeyString: string, signature: any, message: any) {
+  const encodedMessage = new TextEncoder().encode(message)
+  let publicKey = new PublicKey(publicKeyString).toBytes()
+  const encryptedSignature = new Uint8Array(signature.data)
+  return nacl.sign.detached.verify(encodedMessage, encryptedSignature, publicKey)
+}
+
 // retreives the current hodler list in JSON format
 const getHodlerList = async (name: any) => {
   var hodlerListStr = await read(getHodlerFilePath(name))
@@ -206,6 +214,62 @@ app.get('/getHodlers', async (req: Request, res: Response) => {
 })
 
 // Endpoint to validate a hodler and add role 
+app.post('/createProject', async (req: Request, res: Response) => {
+
+  // retrieve config and ensure it is valid
+  const config = await getConfig(req.body.project)
+  if (config) {
+    console.log(`project already exists: ${req.body.project}`)
+    return res.sendStatus(409)
+  }
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    return res.sendStatus(400)
+  }
+
+  // Is the address a system level token holder?
+  var isHolder = isHolderVerified(publicKeyString, {
+    update_authority: process.env.UPDATE_AUTHORITY,
+    spl_token: process.env.SPL_TOKEN
+  })
+
+  // validation of required fields
+  var validationFailures = []
+  var validateRequired = (k: string, v: string) => {
+    if (v == "") {
+      validationFailures.push({
+        "field": k,
+        "error": "field is required"
+      })
+    }
+  }
+
+  // create and validate the new project configuration
+  var newProjectConfig = {
+    owner_public_key: publicKeyString,
+    is_holder: isHolder,
+    message: `Verify ${req.body.project} Discord roles`,
+    discord_client_id: validateRequired("discord_client_id", req.body.discord_client_id),
+    discord_server_id: validateRequired("discord_server_id", req.body.discord_server_id),
+    discord_role_id: validateRequired("discord_role_id", req.body.discord_role_id),
+    discord_redirect_url: `${process.env.BASE_URL}/${req.body.project}`,
+    discord_bot_token: validateRequired("discord_bot_token", req.body.discord_bot_token),
+    update_authority: validateRequired("update_authority", req.body.update_authority),
+    spl_token: req.body.spl_token
+  }
+  var isSuccessful = await write(getConfigFilePath(req.body.project), JSON.stringify(newProjectConfig))
+  if (!isSuccessful) {
+    return res.sendStatus(500)
+  }
+
+  // save and return
+  console.log(`successfully created project ${req.body.project} for owner ${publicKeyString}`)
+  return res.sendStatus(201)
+})
+
+// Endpoint to validate a hodler and add role 
 app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // retrieve config and ensure it is valid
@@ -214,16 +278,9 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
     return res.sendStatus(404)
   }
 
-  const publicKeyString = req.body.publicKey
-  const signature = req.body.signature
-  const message = config.message
-  const encodedMessage = new TextEncoder().encode(message)
-  let publicKey = new PublicKey(publicKeyString).toBytes()
-  const encryptedSignature = new Uint8Array(signature.data)
-
   // Validates signature sent from client
-  const isValid = nacl.sign.detached.verify(encodedMessage, encryptedSignature, publicKey)
-  if (!isValid) {
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, config.message)) {
     return res.sendStatus(400)
   }
 

@@ -20,7 +20,9 @@ export default {
     port: process.env.PORT || 3000
   },
   serverMiddleware: [{ path: '/api', handler: './server-middleware/logHodlers' }],
-  publicRuntimeConfig: {}
+  publicRuntimeConfig: {
+    message: process.env.MESSAGE
+  }
   ,
   // Global CSS: https://go.nuxtjs.dev/config-css
   css: [
