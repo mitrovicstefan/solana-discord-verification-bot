@@ -83,6 +83,10 @@ function getConfigFilePath(name: any) {
   return `./config/prod-${name}.json`
 }
 
+function getPublicKeyFilePath(address: any) {
+  return `./config/publicKey-${address}.json`
+}
+
 // validates signature of a given message
 function isSignatureValid(publicKeyString: string, signature: any, message: any) {
   const encodedMessage = new TextEncoder().encode(message)
@@ -213,15 +217,32 @@ app.get('/getHodlers', async (req: Request, res: Response) => {
   return res.sendStatus(404)
 })
 
+// Endpoint to get all hodlers - protect it if you'd like
+app.get('/getProject', async (req: Request, res: Response) => {
+  try {
+
+    // retrieve existing user project
+    var userProject = JSON.parse(await read(getPublicKeyFilePath(req.query["publicKey"])))
+
+    // retrieve project config
+    var config = await getConfig(userProject.projectName)
+    if (!config) {
+      return res.sendStatus(404)
+    }
+
+    // remove sensitive data
+    config.discord_bot_token = null
+    config.project = userProject.projectName
+
+    // return the configuration
+    return res.json(config)
+  } catch (e) {
+    return res.sendStatus(404)
+  }
+})
+
 // Endpoint to validate a hodler and add role 
 app.post('/createProject', async (req: Request, res: Response) => {
-
-  // retrieve config and ensure it is valid
-  const config = await getConfig(req.body.project)
-  if (config) {
-    console.log(`project already exists: ${req.body.project}`)
-    return res.sendStatus(409)
-  }
 
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
@@ -229,8 +250,26 @@ app.post('/createProject', async (req: Request, res: Response) => {
     return res.sendStatus(400)
   }
 
+  // validate user does not own a project already
+  try {
+    var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
+    if (userProject && userProject.projectName != "") {
+      console.log(`address ${req.body.publicKey} already owns projet ${userProject.projectName}`)
+      return res.sendStatus(409)
+    }
+  } catch (e) {
+    console.log("error parsing JSON", e)
+  }
+
+  // validate project name does not already exist
+  const config = await getConfig(req.body.project)
+  if (config) {
+    console.log(`project already exists: ${req.body.project}`)
+    return res.sendStatus(409)
+  }
+
   // Is the address a system level token holder?
-  var isHolder = isHolderVerified(publicKeyString, {
+  var isHolder = await isHolderVerified(publicKeyString, {
     update_authority: process.env.UPDATE_AUTHORITY,
     spl_token: process.env.SPL_TOKEN
   })
@@ -244,6 +283,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
         "error": "field is required"
       })
     }
+    return v
   }
 
   // create and validate the new project configuration
@@ -257,16 +297,91 @@ app.post('/createProject', async (req: Request, res: Response) => {
     discord_redirect_url: `${process.env.BASE_URL}/${req.body.project}`,
     discord_bot_token: validateRequired("discord_bot_token", req.body.discord_bot_token),
     update_authority: validateRequired("update_authority", req.body.update_authority),
-    spl_token: req.body.spl_token
+    spl_token: req.body.spl_token,
+    verifications: 0
   }
   var isSuccessful = await write(getConfigFilePath(req.body.project), JSON.stringify(newProjectConfig))
   if (!isSuccessful) {
     return res.sendStatus(500)
   }
 
+  // create mapping of wallet public key to project name
+  isSuccessful = await write(getPublicKeyFilePath(publicKeyString), JSON.stringify({
+    projectName: req.body.project
+  }))
+  if (!isSuccessful) {
+    return res.sendStatus(500)
+  }
+
   // save and return
   console.log(`successfully created project ${req.body.project} for owner ${publicKeyString}`)
-  return res.sendStatus(201)
+  return res.json(newProjectConfig)
+})
+
+// Endpoint to validate a hodler and add role 
+app.post('/updateProject', async (req: Request, res: Response) => {
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    return res.sendStatus(400)
+  }
+
+  // validate user owns the project
+  try {
+    var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
+    if (userProject && userProject.projectName != req.body.project) {
+      console.log(`address ${req.body.publicKey} does not own ${req.body.project}`)
+      return res.sendStatus(401)
+    }
+  } catch (e) {
+    console.log("user does not own project", e)
+    return res.sendStatus(401)
+  }
+
+  // validate project name does not already exist
+  const config = await getConfig(req.body.project)
+  if (!config) {
+    console.log(`project does not exist: ${req.body.project}`)
+    return res.sendStatus(404)
+  }
+
+  // Is the address a system level token holder?
+  var isHolder = await isHolderVerified(publicKeyString, {
+    update_authority: process.env.UPDATE_AUTHORITY,
+    spl_token: process.env.SPL_TOKEN
+  })
+
+  // update values that have been modified
+  config.is_holder = isHolder
+  if (req.body.discord_client_id) {
+    config.discord_client_id = req.body.discord_client_id
+  }
+  if (req.body.discord_server_id) {
+    config.discord_server_id = req.body.discord_server_id
+  }
+  if (req.body.discord_role_id) {
+    config.discord_role_id = req.body.discord_role_id
+  }
+  if (req.body.discord_bot_token) {
+    config.discord_bot_token = req.body.discord_bot_token
+  }
+  if (req.body.update_authority) {
+    config.update_authority = req.body.update_authority
+  }
+  if (req.body.spl_token) {
+    config.spl_token = req.body.spl_token
+  }
+
+  // write updated config
+  var isSuccessful = await write(getConfigFilePath(req.body.project), JSON.stringify(config))
+  if (!isSuccessful) {
+    return res.sendStatus(500)
+  }
+
+  // save and return
+  console.log(`successfully updated project ${req.body.project} for owner ${publicKeyString}`)
+  return res.sendStatus(204)
 })
 
 // Endpoint to validate a hodler and add role 

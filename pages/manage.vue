@@ -34,6 +34,12 @@
       <div class="text-center" v-if="step === 5">
         Successfully created project.
       </div>
+      <div class="text-center" v-if="step === 6">
+        Error looking up user status.
+      </div>
+      <div class="text-center" v-if="step === 7">
+        Successfully updated project.
+      </div>
     </div>
   </div>
 </template>
@@ -49,14 +55,21 @@ export default Vue.extend({
       step: 1,
       discordAvatar: '',
       signature: '',
-      publicKey: ''
+      publicKey: '',
+      isUpdate: false,
+      project: '',
+      update_authority: '',
+      spl_token: '',
+      discord_server_id: '',
+      discord_role_id: '',
+      discord_client_id: ''
     }
   },
   async mounted() {
 
     // waiting a short bit, there seems to be a race condition
     // if the connection below tries to load immediately.
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 500));
 
     // Connects to phantom 
     let connection
@@ -69,44 +82,67 @@ export default Vue.extend({
     this.step = 2
 
     // Signs message to verify authority
-      const message = this.$config.message
-      const encodedMessage = new TextEncoder().encode(message)
-      const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-      this.signature = signedMessage.signature
-      // @ts-ignore
-      this.publicKey = connection.publicKey.toString()
-      this.step = 3
+    const message = this.$config.message
+    const encodedMessage = new TextEncoder().encode(message)
+    const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
+    this.signature = signedMessage.signature
+    // @ts-ignore
+    this.publicKey = connection.publicKey.toString()
+
+    // determine if there is an existing project for user 
+    let res 
+    try{   
+      res = await axios.get('/api/getProject?publicKey='+this.publicKey)
+    }  catch(e) {
+      console.log("retrieve project error", e)
+    } 
+    if (res?.status == 200) { 
+      console.log("found existing project:", JSON.stringify(res.data))
+      this.isUpdate = true
+      this.project = res.data.project
+      this.update_authority = res.data.update_authority
+      this.spl_token = res.data.spl_token
+      this.discord_server_id = res.data.discord_server_id
+      this.discord_role_id = res.data.discord_role_id
+      this.discord_client_id = res.data.discord_client_id
+    }
+    this.step = 3
   },
   methods: {
     async submitForm() {
-
         let res 
-        try{   
-                res = await axios.post('/api/createProject', {
-                    signature: this.signature,
-                    publicKey: this.publicKey,
-                    // @ts-ignore
-                    project: this.project,
-                    // @ts-ignore
-                    update_authority: this.update_authority,
-                    // @ts-ignore
-                    spl_token: this.spl_token,
-                    // @ts-ignore
-                    discord_server_id: this.discord_server_id,
-                    // @ts-ignore
-                    discord_role_id: this.discord_role_id,
-                    // @ts-ignore
-                    discord_client_id: this.discord_client_id,
-                    // @ts-ignore
-                    discord_bot_token: this.discord_bot_token
-                })
+        try{
+          var url = (!this.isUpdate) ? '/api/createProject' : '/api/updateProject'
+          res = await axios.post(url, {
+            signature: this.signature,
+            publicKey: this.publicKey,
+            // @ts-ignore
+            project: this.project,
+            // @ts-ignore
+            update_authority: this.update_authority,
+            // @ts-ignore
+            spl_token: this.spl_token,
+            // @ts-ignore
+            discord_server_id: this.discord_server_id,
+            // @ts-ignore
+            discord_role_id: this.discord_role_id,
+            // @ts-ignore
+            discord_client_id: this.discord_client_id,
+            // @ts-ignore
+            discord_bot_token: this.discord_bot_token
+          })
         } catch(e) {
             console.log("API ERROR", e)
             this.step = 4
             return
         }
         console.log("Status:" + res.status)
-        this.step =5
+        if (!this.isUpdate) {
+          this.step = 5
+        } else {
+          this.step = 7
+        }
+        
     }
   } 
 })
