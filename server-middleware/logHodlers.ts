@@ -393,6 +393,15 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
     return res.sendStatus(404)
   }
 
+  // validate free tier not over verification limit
+  var maxFreeVerifications = parseInt((process.env.MAX_FREE_VERIFICATIONS) ? process.env.MAX_FREE_VERIFICATIONS : "-1")
+  if (!config.isHolder && maxFreeVerifications > 0) {
+    if (config.verifications > maxFreeVerifications) {
+      console.log(`free verifications for ${req.body.projectName} has been reached (${config.verifications})`)
+      return res.sendStatus(403)
+    }
+  }
+
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
   if (!isSignatureValid(publicKeyString, req.body.signature, config.message)) {
@@ -403,6 +412,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   const discordName = req.body.discordName
 
   // If matched NFTs are not empty and it's not already in the JSON push it
+  var updatedConfig = false
   if (await isHolderVerified(publicKeyString, config)) {
     let hasHodler = false
     var hodlerList = await getHodlerList(req.body.projectName)
@@ -415,6 +425,11 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
         discordName: discordName,
         publicKey: publicKeyString
       })
+
+      // increment verification count
+      var count = (config.verifications) ? config.verifications : 0
+      config.verifications = ++count
+      updatedConfig = true
     }
   } else {
     console.log("user not verified: " + publicKeyString)
@@ -446,6 +461,11 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   }
   await doer.roles.add(role)
   console.log("successfully added user role")
+
+  // write the config if updated
+  if (updatedConfig) {
+    await write(getConfigFilePath(req.body.projectName), JSON.stringify(config))
+  }
 
   // write result and return successfully
   await write(getHodlerFilePath(req.body.projectName), JSON.stringify(hodlerList))

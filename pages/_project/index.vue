@@ -36,6 +36,9 @@
       <div class="text-center" v-if="step === 8">
         Project not found.
       </div>
+      <div class="text-center" v-if="step === 9">
+        Exceeded number of free verifications. Ask your project owner to mint an NFT to unlock verifications.
+      </div>
     </div>
   </div>
 </template>
@@ -128,8 +131,12 @@ export default Vue.extend({
         this.step = 7 
       }
     } catch (e) {
-      console.log("API ERROR", e)
-      this.step = 7
+      if (e.toString().includes("status code 403")) {
+        this.step = 9
+      } else {
+        console.log("API ERROR", e)
+        this.step = 7
+      }
     }
     
     // show error if failure
