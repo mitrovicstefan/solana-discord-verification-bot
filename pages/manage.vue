@@ -1,45 +1,78 @@
-<template class="main">
+<template >
   <div>
-    <div class="twitter">
-      Made By <a href="https://twitter.com/ProdEnv" class="underline">mitr◎vich 💖</a>. <a class="underline" href="https://twitter.com/ProdEnv">Twitter</a> | <a class="underline" href="https://github.com/mitrovicstefan">Github</a>
+    <div v-if="step === 1">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Let's get started!</h2>
+        <div class="block text-gray-700 text-sm mb-5">
+          The Discord verification service is associated with your Solana wallet.
+        </div>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" @click="connectWallet" type="button">
+          Connect Wallet
+        </button>
     </div>
-    <div class="flex h-screen justify-center items-center flex-col">
-      <div class="text-center" v-if="step === 1">
-        Connecting to phantom
-      </div>
-      <div class="text-center" v-if="step === 2">
-        Please sign the message, this will verify that you're the owner of your wallet.<br>
-        Review the message before signing and make sure that nothing else is requested except signature.
-      </div>
-      <div class="text-center" v-if="step === 3">
-        <form @submit.prevent="submitForm">
-            <h2>Project info</h2>
-            <input type="text" v-model="project" placeholder="Project">
-            <input type="text" v-model="update_authority" placeholder="Update Authority">
-            <input type="text" v-model="spl_token" placeholder="SPL Token">
-            
-            <h2>Discord server info</h2>
-            <input type="text" v-model="discord_server_id" placeholder="Server ID">
-            <input type="text" v-model="discord_role_id" placeholder="Role ID">
-
-            <h2>Discord bot info</h2>
-            <input type="text" v-model="discord_client_id" placeholder="Client ID">
-            <input type="password" v-model="discord_bot_token" placeholder="Token">
-            <button type="submit">Submit</button>
-        </form>
-      </div>
-      <div class="text-center" v-if="step === 4">
-        Error saving project. Try again later.
-      </div>
-      <div class="text-center" v-if="step === 5">
-        Successfully created project.
-      </div>
-      <div class="text-center" v-if="step === 6">
-        Error looking up user status.
-      </div>
-      <div class="text-center" v-if="step === 7">
-        Successfully updated project.
-      </div>
+    <div v-if="step === 2">
+      <h2 class="block text-gray-700 text-xl font-bold mb-2">Signature request</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Please sign the message to verify that you're the owner of your wallet.
+          <br>
+          <br>
+          Review the message before signing and make sure that nothing else is requested except signature.
+        </div>
+    </div>
+    <div v-if="step === 3">
+      <form @submit.prevent="submitForm" >
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Configuration</h2>
+        <div class="mb-4">
+          <h2 class="block text-gray-700 text-sm font-bold mb-2">Project info</h2>
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project" v-if="!this.configResponse" placeholder="Project name">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="update_authority" placeholder="Update authority ID">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="spl_token" placeholder="SPL token ID">
+        </div>
+        <div class="mb-4">
+          <h2 class="block text-gray-700 text-sm font-bold mb-2">Discord server info</h2>
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_server_id" placeholder="Discord server ID">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role_id" placeholder="Discord server role ID">
+        </div>
+        <div class="mb-4">
+          <h2 class="block text-gray-700 text-sm font-bold mb-2">Discord bot info</h2>
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_client_id" placeholder="Discord bot client ID">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="password" v-model="discord_bot_token" placeholder="Discord bot token">
+        </div>
+          <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Save</button>
+      </form>
+    </div>
+    <div v-if="step === 4">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Oops, something went wrong</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Error saving project. Try again later.
+        </div>
+    </div>
+    <div v-if="step === 5">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">All set!</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Successfully created project.
+        </div>
+    </div>
+    <div v-if="step === 6">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Oops, something went wrong</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Error looking up user status.
+        </div>
+    </div>
+    <div v-if="step === 7">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">All set!</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Successfully updated project.
+        </div>
+    </div>
+    <div v-if="this.configResponse">
+        <br>
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">My verification URL</h2>
+        <div class="block text-sm mb-2"> 
+          <a class=hyperlink :href="this.discord_redirect_url">{{discord_redirect_url}}</a>
+        </div>
+        <div class="block text-gray-700 text-sm mb-2">
+          Quota remaining: {{discord_remaining_verifications}}
+        </div>
     </div>
   </div>
 </template>
@@ -62,53 +95,64 @@ export default Vue.extend({
       spl_token: '',
       discord_server_id: '',
       discord_role_id: '',
-      discord_client_id: ''
+      discord_client_id: '',
+      discord_bot_token: '',
+      configResponse: null,
+      discord_redirect_url: '',
+      discord_remaining_verifications: ''
     }
   },
   async mounted() {
-
-    // waiting a short bit, there seems to be a race condition
-    // if the connection below tries to load immediately.
-    await new Promise(r => setTimeout(r, 500));
-
-    // Connects to phantom 
-    let connection
-    try {
-      connection = await window.solana.connect() 
-    } catch (e) {
-      console.log(e) 
-    }
-
-    this.step = 2
-
-    // Signs message to verify authority
-    const message = this.$config.message
-    const encodedMessage = new TextEncoder().encode(message)
-    const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-    this.signature = signedMessage.signature
-    // @ts-ignore
-    this.publicKey = connection.publicKey.toString()
-
-    // determine if there is an existing project for user 
-    let res 
-    try{   
-      res = await axios.get('/api/getProject?publicKey='+this.publicKey)
-    }  catch(e) {
-      console.log("retrieve project error", e)
-    } 
-    if (res?.status == 200) { 
-      console.log("found existing project:", JSON.stringify(res.data))
-      this.isUpdate = true
-      this.project = res.data.project
-      this.update_authority = res.data.update_authority
-      this.spl_token = res.data.spl_token
-      this.discord_server_id = res.data.discord_server_id
-      this.discord_role_id = res.data.discord_role_id
-      this.discord_client_id = res.data.discord_client_id
-    }
-    this.step = 3
   },
   methods: {
+    async connectWallet() {
+     
+      // Connects to phantom 
+      let connection
+      try {
+        connection = await window.solana.connect() 
+      } catch (e) {
+        console.log(e) 
+      }
+
+      this.step = 2
+
+      // Signs message to verify authority
+      const message = this.$config.message
+      const encodedMessage = new TextEncoder().encode(message)
+      const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
+      this.signature = signedMessage.signature
+      // @ts-ignore
+      this.publicKey = connection.publicKey.toString()
+
+      // determine if there is an existing project for user 
+      let res 
+      try{   
+        res = await axios.get('/api/getProject?publicKey='+this.publicKey)
+        this.configResponse = res.data
+        this.discord_redirect_url = res.data.discord_redirect_url
+        if (res.data.is_holder) {
+          this.discord_remaining_verifications = "unlimited"
+        } else {
+          // @ts-ignore
+          this.discord_remaining_verifications = this.$config.max_free_verifications - res.data.verifications
+        }
+      }  catch(e) {
+        console.log("retrieve project error", e)
+      } 
+      if (res?.status == 200) { 
+        console.log("found existing project:", JSON.stringify(res.data))
+        this.isUpdate = true
+        this.project = res.data.project
+        this.update_authority = res.data.update_authority
+        this.spl_token = res.data.spl_token
+        this.discord_server_id = res.data.discord_server_id
+        this.discord_role_id = res.data.discord_role_id
+        this.discord_client_id = res.data.discord_client_id
+        this.discord_bot_token = res.data.discord_bot_token
+      }
+      this.step = 3
+    },
     async submitForm() {
         let res 
         try{
@@ -131,6 +175,14 @@ export default Vue.extend({
             // @ts-ignore
             discord_bot_token: this.discord_bot_token
           })
+          this.configResponse = res.data
+          this.discord_redirect_url = res.data.discord_redirect_url
+          if (res.data.is_holder) {
+            this.discord_remaining_verifications = "unlimited"
+          } else {
+            // @ts-ignore
+            this.discord_remaining_verifications = this.$config.max_free_verifications - res.data.verifications
+          }
         } catch(e) {
             console.log("API ERROR", e)
             this.step = 4
@@ -147,18 +199,3 @@ export default Vue.extend({
   } 
 })
 </script>
-
-<style>
-body {
-  background: #23272A;
-  color: #ffffff;
-  position: relative;
-}
-
-.twitter {
-  position: absolute;
-  width: 100%;
-  text-align: center;
-  bottom: 10px;
-}
-</style>

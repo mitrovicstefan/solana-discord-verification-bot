@@ -1,7 +1,7 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: process.env.PROJECT_NAME || 'authorization-bot',
+    title: process.env.PRODUCT_NAME || 'Discord Verification',
     htmlAttrs: {
       lang: 'en'
     },
@@ -12,7 +12,7 @@ export default {
       { name: 'format-detection', content: 'telephone=no' }
     ],
     link: [
-      { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      { rel: 'icon', type: 'image/x-icon', href: process.env.LOGO_URL }
     ]
   },
 
@@ -21,7 +21,11 @@ export default {
   },
   serverMiddleware: [{ path: '/api', handler: './server-middleware/logHodlers' }],
   publicRuntimeConfig: {
-    message: process.env.MESSAGE
+    message: process.env.MESSAGE,
+    project_name: process.env.PRODUCT_NAME,
+    upgrade_url: process.env.UPGRADE_URL,
+    about_url: process.env.ABOUT_URL,
+    max_free_verifications: parseInt(process.env.MAX_FREE_VERIFICATIONS)
   }
   ,
   // Global CSS: https://go.nuxtjs.dev/config-css

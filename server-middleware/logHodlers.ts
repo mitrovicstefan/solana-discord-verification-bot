@@ -15,6 +15,7 @@ const { Client, Intents } = require('discord.js')
 
 // Cache of discord clients available on this server
 const discordClients = new Map<any, any>()
+const defaultRedactedString = "content-redacted"
 
 // Lazy load clients as required
 async function getDiscordClient(projectName: any) {
@@ -93,6 +94,21 @@ function isSignatureValid(publicKeyString: string, signature: any, message: any)
   let publicKey = new PublicKey(publicKeyString).toBytes()
   const encryptedSignature = new Uint8Array(signature.data)
   return nacl.sign.detached.verify(encodedMessage, encryptedSignature, publicKey)
+}
+
+// converts a string to camel case
+function toCamelCase(str: string) {
+  // Lower cases the string
+  return str.toLowerCase()
+    // Replaces any - or _ characters with a space 
+    .replace(/[-_]+/g, ' ')
+    // Removes any non alphanumeric characters 
+    .replace(/[^\w\s]/g, '')
+    // Uppercases the first character in each group immediately following a space 
+    // (delimited by spaces) 
+    .replace(/ (.)/g, function ($1) { return $1.toUpperCase(); })
+    // Removes spaces 
+    .replace(/ /g, '');
 }
 
 // retreives the current hodler list in JSON format
@@ -231,7 +247,7 @@ app.get('/getProject', async (req: Request, res: Response) => {
     }
 
     // remove sensitive data
-    config.discord_bot_token = null
+    config.discord_bot_token = defaultRedactedString
     config.project = userProject.projectName
 
     // return the configuration
@@ -261,10 +277,13 @@ app.post('/createProject', async (req: Request, res: Response) => {
     console.log("error parsing JSON", e)
   }
 
+  // ensure we have a proper project name
+  var projectNameCamel = toCamelCase(req.body.project)
+
   // validate project name does not already exist
-  const config = await getConfig(req.body.project)
+  const config = await getConfig(projectNameCamel)
   if (config) {
-    console.log(`project already exists: ${req.body.project}`)
+    console.log(`project already exists: ${projectNameCamel}`)
     return res.sendStatus(409)
   }
 
@@ -294,27 +313,27 @@ app.post('/createProject', async (req: Request, res: Response) => {
     discord_client_id: validateRequired("discord_client_id", req.body.discord_client_id),
     discord_server_id: validateRequired("discord_server_id", req.body.discord_server_id),
     discord_role_id: validateRequired("discord_role_id", req.body.discord_role_id),
-    discord_redirect_url: `${process.env.BASE_URL}/${req.body.project}`,
+    discord_redirect_url: `${process.env.BASE_URL}/${projectNameCamel}`,
     discord_bot_token: validateRequired("discord_bot_token", req.body.discord_bot_token),
     update_authority: validateRequired("update_authority", req.body.update_authority),
     spl_token: req.body.spl_token,
     verifications: 0
   }
-  var isSuccessful = await write(getConfigFilePath(req.body.project), JSON.stringify(newProjectConfig))
+  var isSuccessful = await write(getConfigFilePath(projectNameCamel), JSON.stringify(newProjectConfig))
   if (!isSuccessful) {
     return res.sendStatus(500)
   }
 
   // create mapping of wallet public key to project name
   isSuccessful = await write(getPublicKeyFilePath(publicKeyString), JSON.stringify({
-    projectName: req.body.project
+    projectName: projectNameCamel
   }))
   if (!isSuccessful) {
     return res.sendStatus(500)
   }
 
   // save and return
-  console.log(`successfully created project ${req.body.project} for owner ${publicKeyString}`)
+  console.log(`successfully created project ${projectNameCamel} for owner ${publicKeyString}`)
   return res.json(newProjectConfig)
 })
 
@@ -363,7 +382,7 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   if (req.body.discord_role_id) {
     config.discord_role_id = req.body.discord_role_id
   }
-  if (req.body.discord_bot_token) {
+  if (req.body.discord_bot_token && req.body.discord_bot_token != defaultRedactedString) {
     config.discord_bot_token = req.body.discord_bot_token
   }
   if (req.body.update_authority) {
@@ -381,7 +400,7 @@ app.post('/updateProject', async (req: Request, res: Response) => {
 
   // save and return
   console.log(`successfully updated project ${req.body.project} for owner ${publicKeyString}`)
-  return res.sendStatus(204)
+  return res.json(config)
 })
 
 // Endpoint to validate a hodler and add role 
@@ -395,7 +414,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // validate free tier not over verification limit
   var maxFreeVerifications = parseInt((process.env.MAX_FREE_VERIFICATIONS) ? process.env.MAX_FREE_VERIFICATIONS : "-1")
-  if (!config.isHolder && maxFreeVerifications > 0) {
+  if (!config.is_holder && maxFreeVerifications > 0) {
     if (config.verifications > maxFreeVerifications) {
       console.log(`free verifications for ${req.body.projectName} has been reached (${config.verifications})`)
       return res.sendStatus(403)

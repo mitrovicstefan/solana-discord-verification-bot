@@ -1,45 +1,49 @@
 <template class="main">
   <div>
-    <div class="twitter">
-      Made By <a href="https://twitter.com/ProdEnv" class="underline">mitr◎vich 💖</a>. <a class="underline" href="https://twitter.com/ProdEnv">Twitter</a> | <a class="underline" href="https://github.com/mitrovicstefan">Github</a>
-    </div>
-    <div class="flex h-screen justify-center items-center flex-col">
-      <div class="text-center" v-if="step === 1">
+      <div class="block text-gray-700 text-sm" v-if="step === 1">
         Loading your discord username
       </div>
 
-      <div class="text-center" v-if="step === 2">
+      <div class="block text-gray-700 text-sm" v-if="step === 2">
         Getting your username
       </div>
 
-      <div class="text-center" v-if="step > 2">
+      <div class="block text-gray-700 text-sm" v-if="step > 2">
         <img alt="Discord profile pic" v-if="discordAvatar !== ''" class="rounded-full border-4 border-white w-20 my-0 mx-auto mb-4" :src="discordAvatar">
-        {{discordUsername}}
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">{{discordUsername}}</h2>
       </div>
 
-      <div class="text-center" v-if="step === 3">
+      <div class="block text-gray-700 text-sm" v-if="step === 3">
         Connecting to phantom
       </div>
-      <div class="text-center" v-if="step === 4">
-        Please sign the message, this will verify that you're the owner of your wallet.<br>
+      <div class="block text-gray-700 text-sm" v-if="step === 4">
+        Please sign the message to verify that you're the owner of your wallet. We are about to make sure it holds the required tokens for your Discord validation.
+        <br>
+        <br>
         Review the message before signing and make sure that nothing else is requested except signature.
       </div>
-      <div class="text-center" v-if="step === 5">
+      <div class="block text-gray-700 text-sm" v-if="step === 5">
         You're verified! You can close this window now and flex your new discord power.
       </div>
-      <div class="text-center" v-if="step === 6">
+      <div class="block text-gray-700 text-sm" v-if="step === 6">
         Unfortunately your wallet doesn't have the tokens required for validation.
       </div>
-      <div class="text-center" v-if="step === 7">
+      <div class="block text-gray-700 text-sm" v-if="step === 7">
         There is currently a problem communicating with the Discord API. Try again later.
       </div>
-      <div class="text-center" v-if="step === 8">
+      <div class="block text-gray-700 text-sm" v-if="step === 8">
         Project not found.
       </div>
-      <div class="text-center" v-if="step === 9">
-        Exceeded number of free verifications. Ask your project owner to mint an NFT to unlock verifications.
+      <div class="block text-gray-700 text-sm" v-if="step === 9">
+        Exceeded number of free verifications. Ask your project owner to get one of our NFTs to unlock unlimited verifications.
       </div>
-    </div>
+      <div class="block text-gray-700 text-sm" v-if="step > 2">
+        <br><br>
+        <h2 class="block text-gray-700 text-lg font-bold mb-2">What is NFT 4 Cause?</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofit donations. <b>We donate 80% of the funds</b> from every NFT minted or traded on the secondary market! Our holders CHOOSE where to donate funds.
+        </div>
+      </div>
   </div>
 </template>
 
@@ -133,32 +137,13 @@ export default Vue.extend({
     } catch (e) {
       if (e.toString().includes("status code 403")) {
         this.step = 9
+      } else if (e.toString().includes("status code 401")) {
+        this.step = 6
       } else {
         console.log("API ERROR", e)
         this.step = 7
       }
     }
-    
-    // show error if failure
-    if (this.step == 4) {
-      this.step = 6
-    }
-    
   }
 })
 </script>
-
-<style>
-body {
-  background: #23272A;
-  color: #ffffff;
-  position: relative;
-}
-
-.twitter {
-  position: absolute;
-  width: 100%;
-  text-align: center;
-  bottom: 10px;
-}
-</style>
