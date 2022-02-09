@@ -6,6 +6,7 @@ import { initializeStorage, read, write } from './storage/persist'
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const fs = require('fs')
 const nacl = require('tweetnacl')
+const xss = require("xss")
 const { PublicKey } = require('@solana/web3.js')
 const { Client, Intents } = require('discord.js')
 
@@ -278,7 +279,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
   }
 
   // ensure we have a proper project name
-  var projectNameCamel = toCamelCase(req.body.project)
+  var projectNameCamel = toCamelCase(xss(req.body.project))
 
   // validate project name does not already exist
   const config = await getConfig(projectNameCamel)
@@ -309,14 +310,15 @@ app.post('/createProject', async (req: Request, res: Response) => {
   var newProjectConfig = {
     owner_public_key: publicKeyString,
     is_holder: isHolder,
-    message: `Verify ${req.body.project} Discord roles`,
-    discord_client_id: validateRequired("discord_client_id", req.body.discord_client_id),
-    discord_server_id: validateRequired("discord_server_id", req.body.discord_server_id),
-    discord_role_id: validateRequired("discord_role_id", req.body.discord_role_id),
+    message: `Verify ${xss(req.body.project)} Discord roles`,
+    discord_client_id: validateRequired("discord_client_id", xss(req.body.discord_client_id)),
+    discord_server_id: validateRequired("discord_server_id", xss(req.body.discord_server_id)),
+    discord_role_id: validateRequired("discord_role_id", xss(req.body.discord_role_id)),
     discord_redirect_url: `${process.env.BASE_URL}/${projectNameCamel}`,
-    discord_bot_token: validateRequired("discord_bot_token", req.body.discord_bot_token),
-    update_authority: validateRequired("update_authority", req.body.update_authority),
-    spl_token: req.body.spl_token,
+    discord_bot_token: validateRequired("discord_bot_token", xss(req.body.discord_bot_token)),
+    update_authority: validateRequired("update_authority", xss(req.body.update_authority)),
+    royalty_wallet_id: xss(req.body.royalty_wallet_id),
+    spl_token: xss(req.body.spl_token),
     verifications: 0
   }
   var isSuccessful = await write(getConfigFilePath(projectNameCamel), JSON.stringify(newProjectConfig))
@@ -374,22 +376,25 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   // update values that have been modified
   config.is_holder = isHolder
   if (req.body.discord_client_id) {
-    config.discord_client_id = req.body.discord_client_id
+    config.discord_client_id = xss(req.body.discord_client_id)
   }
   if (req.body.discord_server_id) {
-    config.discord_server_id = req.body.discord_server_id
+    config.discord_server_id = xss(req.body.discord_server_id)
   }
   if (req.body.discord_role_id) {
-    config.discord_role_id = req.body.discord_role_id
+    config.discord_role_id = xss(req.body.discord_role_id)
   }
   if (req.body.discord_bot_token && req.body.discord_bot_token != defaultRedactedString) {
-    config.discord_bot_token = req.body.discord_bot_token
+    config.discord_bot_token = xss(req.body.discord_bot_token)
   }
   if (req.body.update_authority) {
-    config.update_authority = req.body.update_authority
+    config.update_authority = xss(req.body.update_authority)
+  }
+  if (req.body.royalty_wallet_id) {
+    config.royalty_wallet_id = xss(req.body.royalty_wallet_id)
   }
   if (req.body.spl_token) {
-    config.spl_token = req.body.spl_token
+    config.spl_token = xss(req.body.spl_token)
   }
 
   // write updated config

@@ -1,7 +1,7 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: process.env.PRODUCT_NAME || 'Discord Verification',
+    title: process.env.PRODUCT_NAME || 'Solana Tools',
     htmlAttrs: {
       lang: 'en'
     },

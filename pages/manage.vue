@@ -3,11 +3,18 @@
     <div v-if="step === 1">
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Let's get started!</h2>
         <div class="block text-gray-700 text-sm mb-5">
-          The Discord verification service is associated with your Solana wallet.
+          Your NFT project tools are associated with your Solana wallet address. Connect your wallet to login.
         </div>
-        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" @click="connectWallet" type="button">
-          Connect Wallet
-        </button>
+        <div class="block text-gray-700 text-sm mb-5">
+          <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" @click="connectWallet" type="button">
+            Connect Wallet
+          </button>
+        </div>
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Show me how to do it</h2>
+        <div class="block text-gray-700 text-sm mb-5">
+          We've provided this video to show you how to get your Solana NFT project up and running with our tools in just 10 minutes.
+        </div>
+        <iframe width="450" height="253" src="https://www.youtube.com/embed/QFRDIN4athM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
     <div v-if="step === 2">
       <h2 class="block text-gray-700 text-xl font-bold mb-2">Signature request</h2>
@@ -25,7 +32,8 @@
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Project info</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project" v-if="!this.configResponse" placeholder="Project name">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="update_authority" placeholder="Update authority ID">
-          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="spl_token" placeholder="SPL token ID">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="royalty_wallet_id" placeholder="Royalty wallet ID">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="spl_token" placeholder="White list token ID">
         </div>
         <div class="mb-4">
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Discord server info</h2>
@@ -93,6 +101,7 @@ export default Vue.extend({
       project: '',
       update_authority: '',
       spl_token: '',
+      royalty_wallet_id: '',
       discord_server_id: '',
       discord_role_id: '',
       discord_client_id: '',
@@ -146,6 +155,7 @@ export default Vue.extend({
         this.project = res.data.project
         this.update_authority = res.data.update_authority
         this.spl_token = res.data.spl_token
+        this.royalty_wallet_id = res.data.royalty_wallet_id
         this.discord_server_id = res.data.discord_server_id
         this.discord_role_id = res.data.discord_role_id
         this.discord_client_id = res.data.discord_client_id
@@ -166,6 +176,8 @@ export default Vue.extend({
             update_authority: this.update_authority,
             // @ts-ignore
             spl_token: this.spl_token,
+            // @ts-ignore
+            royalty_wallet_id: this.royalty_wallet_id,
             // @ts-ignore
             discord_server_id: this.discord_server_id,
             // @ts-ignore

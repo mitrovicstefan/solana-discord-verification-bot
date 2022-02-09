@@ -3,7 +3,7 @@
     <nav class="container flex flex-wrap items-center justify-between px-2 py-3 mx-auto">
       <div class="flex justify-between w-full px-3 md:w-auto md:static md:block md:justify-start">
         <div class="inline-block py-2 text-lg font-bold">
-          {{ this.$config.project_name }} | Discord Verification
+          {{ this.$config.project_name }} | Solana Tools
         </div>
       </div>
       <div class="flex overflow-hidden duration-200 transition-height md:h-auto" :class="isExpanded ? 'h-24' : 'h-0'">

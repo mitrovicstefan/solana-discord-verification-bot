@@ -1,13 +1,14 @@
 <template>
-  <div class="bg-gray-100  flex-col">
+  <div class="bg-gray-100 flex-col h-screen">
     <AppHeader />
-    <div class="flex h-screen justify-center items-center flex-col">
+    <div class="flex justify-center items-center flex-col mt-10">
         <div class="w-full max-w-lg">
             <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
             <Nuxt />
             </div>
         </div>
     </div>
+    <div class="flex flex-grow"></div>
     <AppFooter />
   </div>
 </template>

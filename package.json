@@ -23,7 +23,8 @@
     "dotenv": "^10.0.0",
     "ibm-cos-sdk": "^1.11.0",
     "nuxt": "^2.15.7",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "xss": "^1.0.10"
   },
   "devDependencies": {
     "@nuxt/types": "^2.15.7",
