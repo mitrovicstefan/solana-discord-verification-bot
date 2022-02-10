@@ -1,4 +1,4 @@
-import { initializeCOS, readCOSFile, useCOS, writeCOSFile } from "./ibm-cos";
+import { initializeCOS, listCOSFiles, readCOSFile, useCOS, writeCOSFile } from "./ibm-cos";
 
 const fs = require('fs')
 
@@ -16,6 +16,26 @@ export function initializeStorage() {
             bucket: cosConfig.bucket
         })
     }
+}
+
+export async function list(directoryPath: string, filter: string) {
+    console.log(`listing files in directory ${directoryPath}`)
+    if (useCOS()) {
+        return await listCOSFiles(`${directoryPath}/${filter}`.replaceAll("./", ""))
+    }
+    try {
+        var matchingFiles: string[] = []
+        var filenames = fs.readdirSync(directoryPath)
+        filenames.forEach((file: string) => {
+            if (file.includes(filter)) {
+                matchingFiles.push(file)
+            }
+        })
+        return matchingFiles
+    } catch (e) {
+        console.log("error listing files", e)
+    }
+    return []
 }
 
 export async function read(fileName: string) {

@@ -21,6 +21,20 @@ export async function readCOSFile(fileName: string) {
     return await getItem(bucketName, fileName)
 }
 
+// listCOSFiles retrieves names of items matching a given string
+export async function listCOSFiles(matchString: string) {
+    var allBucketItems = await getBucketObjects(bucketName)
+    var matchingBucketItems = []
+    if (allBucketItems) {
+        for (var i = 0; i < allBucketItems.length; i++) {
+            if (allBucketItems[i].Key?.includes(matchString) || matchString == "") {
+                matchingBucketItems.push(allBucketItems[i].Key)
+            }
+        }
+    }
+    return matchingBucketItems
+}
+
 // Determines if a given bucket exists
 async function bucketExists(name: string) {
     try {
@@ -55,6 +69,19 @@ async function createBucket(bucketName: string) {
         logError(e)
     }
     return false
+}
+
+// Lists all items in specified bucket
+async function getBucketObjects(bucketName: string) {
+    try {
+        const data = await cos.listObjects({
+            Bucket: bucketName,
+        }).promise()
+        return data.Contents
+    } catch (e) {
+        logError(e)
+    }
+    return []
 }
 
 // Creates a new text file

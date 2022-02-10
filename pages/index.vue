@@ -18,7 +18,7 @@
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">Who are we?</h2>
         <div class="block text-gray-700 text-sm mb-2">
-        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofits. Every NFT minted or traded on secondary market is an 80% donation! The remaining funds go towards development of tools to enhance the Solana community.
+        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofits. <b>Every NFT minted or traded on a secondary market is an 80% donation!</b> Everything else funds the development of tools like this to enhance the Solana community.
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">Opensource</h2>
         <div class="block text-gray-700 text-sm mb-2">

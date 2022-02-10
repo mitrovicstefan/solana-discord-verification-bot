@@ -10,7 +10,7 @@
 
       <div class="block text-gray-700 text-sm" v-if="step > 2">
         <img alt="Discord profile pic" v-if="discordAvatar !== ''" class="rounded-full border-4 border-white w-20 my-0 mx-auto mb-4" :src="discordAvatar">
-        <h2 class="block text-gray-700 text-xl font-bold mb-2">{{discordUsername}}</h2>
+        <h2 class="block text-gray-700 text-2xl font-bold mb-2">{{discordUsername}}</h2>
       </div>
 
       <div class="block text-gray-700 text-sm" v-if="step === 3">
@@ -37,11 +37,10 @@
       <div class="block text-gray-700 text-sm" v-if="step === 9">
         Exceeded number of free verifications. Ask your project owner to get one of our NFTs to unlock unlimited verifications.
       </div>
-      <div class="block text-gray-700 text-sm" v-if="step > 2">
-        <br><br>
+      <div class="block text-gray-700 text-sm mt-5" v-if="step > 2">
         <h2 class="block text-gray-700 text-lg font-bold mb-2">What is NFT 4 Cause?</h2>
         <div class="block text-gray-700 text-sm mb-2">
-        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofit donations. <b>We donate 80% of the funds</b> from every NFT minted or traded on the secondary market! Our holders CHOOSE where to donate funds.
+        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofits. <b>Every NFT minted or traded on a secondary market is an 80% donation!</b> Everything else funds the development of tools like this to enhance the Solana community.
         </div>
       </div>
   </div>

@@ -2,13 +2,14 @@ const bodyParser = require('body-parser')
 const axios = require('axios')
 const app = require('express')()
 import { Request, Response } from 'express'
-import { initializeStorage, read, write } from './storage/persist'
+import { initializeStorage, list, read, write } from './storage/persist'
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const fs = require('fs')
 const nacl = require('tweetnacl')
 const xss = require("xss")
 const { PublicKey } = require('@solana/web3.js')
 const { Client, Intents } = require('discord.js')
+const cron = require('node-cron')
 
 /**
  * Configure the Discord client
@@ -40,11 +41,15 @@ async function getDiscordClient(projectName: any) {
   let prefix = "!";
   let redirect_url = config.discord_redirect_url;
   newClient.on("messageCreate", (message: { content: { startsWith: (prefix: string) => boolean }, channel: any, author: any, }) => {
+
     // Exit and stop if the prefix is not there or if user is a bot
     if (!message.content.startsWith(prefix) || message.author.bot) return;
 
+    // only process !verify commands
     if (message.content.startsWith(`${prefix}verify`)) {
-      message.channel.send(`Hey ${message.author}, Visit ${redirect_url} to gain your special role!`);
+
+      // send the verification message to user
+      message.channel.send(`Hi ${message.author}! Visit ${redirect_url} to gain your special NFT holder role.`);
     }
   });
 
@@ -74,6 +79,49 @@ initializeStorage()
 
 
 /**
+ * Background jobs
+ */
+
+// ensure the Discord client is loaded for all of the configured projects.
+cron.schedule('* * * * *', async function () {
+  try {
+    console.log("loading all projects to initialize discord clients")
+    var allProjects = await getAllProjects()
+    console.log("retrieved projects", allProjects.length)
+    for (var i = 0; i < allProjects.length; i++) {
+      try {
+        console.log(`initializing client: ${allProjects[i]}`)
+        await getDiscordClient(allProjects[i])
+      } catch (e1) {
+        console.log("error loading project", e1)
+      }
+    }
+  } catch (e2) {
+    console.log("error retrieving project list", e2)
+  }
+})
+
+// validate project holders every 30 minutes
+cron.schedule('*/30 * * * *', async function () {
+  try {
+    console.log("loading all projects for revalidation")
+    var allProjects = await getAllProjects()
+    console.log("retrieved projects", allProjects.length)
+    for (var i = 0; i < allProjects.length; i++) {
+      try {
+        console.log(`validating holders: ${allProjects[i]}`)
+        await reloadHolders(allProjects[i])
+      } catch (e1) {
+        console.log("error loading project", e1)
+      }
+    }
+  } catch (e2) {
+    console.log("error retrieving project list", e2)
+  }
+})
+
+
+/**
  * Helper methods
  */
 
@@ -87,6 +135,10 @@ function getConfigFilePath(name: any) {
 
 function getPublicKeyFilePath(address: any) {
   return `./config/publicKey-${address}.json`
+}
+
+function getServerFilePath(serverID: any) {
+  return `./config/server-${serverID}.json`
 }
 
 // validates signature of a given message
@@ -127,6 +179,19 @@ async function getConfig(name: any) {
     console.log("error reading file", e)
   }
   return null
+}
+
+// retrieves list of all projects
+async function getAllProjects() {
+  var projectNames = []
+  var projectIDs = await list("./config", "prod")
+  for (var i = 0; i < projectIDs.length; i++) {
+    var project = projectIDs[i]?.replaceAll("./", "").replaceAll("config/prod-", "").replaceAll(".json", "")
+    if (project) {
+      projectNames.push(project)
+    }
+  }
+  return projectNames
 }
 
 // retrieves the token balance
@@ -205,6 +270,74 @@ const isHolderVerified = async (walletAddress: string, config: any) => {
   return isVerified
 }
 
+// validates the current holders are still in good standing
+const reloadHolders = async (project: any) => {
+
+  // retrieve config and ensure it is valid
+  const config = await getConfig(project)
+  if (!config) {
+    return 404
+  }
+
+  // only allow reload on given interval
+  var reloadIntervalMillis = parseInt((process.env.RELOAD_INTERVAL_MINUTES) ? process.env.RELOAD_INTERVAL_MINUTES : "0") * 60 * 1000
+  var lastReloadMillis = (config.lastReload) ? config.lastReload : 0
+  var lastReloadElapsed = Date.now() - lastReloadMillis
+  console.log(`last reload was ${lastReloadElapsed}ms ago`)
+  if (lastReloadElapsed < reloadIntervalMillis) {
+    console.log(`reload not yet required`)
+    return 200
+  }
+
+  // retrieve discord client
+  const client = await getDiscordClient(project)
+  if (!client) {
+    return 400
+  }
+
+  // iterate the hodler list
+  var hodlerList = await getHodlerList(project)
+  for (let n in hodlerList) {
+
+    // remove access if no matches
+    const holder = hodlerList[n]
+    if (!await isHolderVerified(holder.publicKey, config)) {
+
+      // parse the discord address to remove
+      console.log(`address is no longer holding expected tokens: ${holder.publicKey}`)
+      hodlerList.splice(n, 1)
+      const username = holder.discordName.split('#')[0]
+      const discriminator = holder.discordName.split('#')[1]
+
+      // remove role from discord user
+      const myGuild = await client.guilds.cache.get(config.discord_server_id)
+      if (!myGuild) {
+        console.log("error retrieving server information")
+        return 500
+      }
+      const role = await myGuild.roles.cache.find((r: any) => r.id === config.discord_role_id)
+      if (!role) {
+        console.log("error retrieving role information")
+        return 500
+      }
+      const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
+      if (!doer) {
+        console.log("error retrieving user information")
+        return 500
+      }
+      await doer.roles.remove(role)
+    }
+  }
+
+  // update the config with current timestamp
+  config.lastReload = Date.now()
+  await write(getConfigFilePath(project), JSON.stringify(config))
+
+  // update the hodler file and return successfully
+  await write(getHodlerFilePath(project), JSON.stringify(hodlerList))
+  return 200
+}
+
 /**
  * API endpoint implementation
  */
@@ -248,11 +381,33 @@ app.get('/getProject', async (req: Request, res: Response) => {
     }
 
     // remove sensitive data
-    config.discord_bot_token = defaultRedactedString
-    config.project = userProject.projectName
+    var returnConfig = {
+      project: userProject.projectName,
+      is_holder: config.is_holder,
+      discord_client_id: config.discord_client_id,
+      discord_server_id: config.discord_server_id,
+      discord_role_id: config.discord_role_id,
+      update_authority: config.update_authority,
+      spl_token: config.spl_token,
+      royalty_wallet_id: config.royalty_wallet_id,
+      verifications: config.verifications,
+      discord_bot_token: defaultRedactedString
+    }
 
     // return the configuration
-    return res.json(config)
+    return res.json(returnConfig)
+  } catch (e) {
+    return res.sendStatus(404)
+  }
+})
+
+app.get('/getProjects', async (req: Request, res: Response) => {
+  try {
+    var projectNames: any[] = []
+    discordClients.forEach((v, k) => {
+      projectNames.push(k)
+    })
+    res.json(projectNames)
   } catch (e) {
     return res.sendStatus(404)
   }
@@ -271,11 +426,22 @@ app.post('/createProject', async (req: Request, res: Response) => {
   try {
     var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
     if (userProject && userProject.projectName != "") {
-      console.log(`address ${req.body.publicKey} already owns projet ${userProject.projectName}`)
+      console.log(`address ${req.body.publicKey} already owns project ${userProject.projectName}`)
+      return res.sendStatus(403)
+    }
+  } catch (e) {
+    console.log("error retreiving existing project", e)
+  }
+
+  // validate the server ID is not already in use
+  try {
+    var serverFile = JSON.parse(await read(getServerFilePath(req.body.discord_server_id)))
+    if (serverFile && serverFile.projectName != "") {
+      console.log(`server ${req.body.discord_server_id} already associated with project ${serverFile.projectName}`)
       return res.sendStatus(409)
     }
   } catch (e) {
-    console.log("error parsing JSON", e)
+    console.log("error looking up existing server", e)
   }
 
   // ensure we have a proper project name
@@ -295,7 +461,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
   })
 
   // validation of required fields
-  var validationFailures = []
+  var validationFailures: any[] = []
   var validateRequired = (k: string, v: string) => {
     if (v == "") {
       validationFailures.push({
@@ -321,6 +487,10 @@ app.post('/createProject', async (req: Request, res: Response) => {
     spl_token: xss(req.body.spl_token),
     verifications: 0
   }
+  if (validationFailures.length > 0) {
+    console.log("invalid request:", JSON.stringify(validationFailures))
+    return res.sendStatus(400)
+  }
   var isSuccessful = await write(getConfigFilePath(projectNameCamel), JSON.stringify(newProjectConfig))
   if (!isSuccessful) {
     return res.sendStatus(500)
@@ -328,6 +498,14 @@ app.post('/createProject', async (req: Request, res: Response) => {
 
   // create mapping of wallet public key to project name
   isSuccessful = await write(getPublicKeyFilePath(publicKeyString), JSON.stringify({
+    projectName: projectNameCamel
+  }))
+  if (!isSuccessful) {
+    return res.sendStatus(500)
+  }
+
+  // create mapping of discord servier id to project name
+  isSuccessful = await write(getServerFilePath(newProjectConfig.discord_server_id), JSON.stringify({
     projectName: projectNameCamel
   }))
   if (!isSuccessful) {
@@ -498,70 +676,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 
 // Endpoint to validate current hodlers
 app.get('/reloadHolders', async (req: Request, res: Response) => {
-
-  // retrieve config and ensure it is valid
-  const config = await getConfig(req.query["project"])
-  if (!config) {
-    return res.sendStatus(404)
-  }
-
-  // only allow reload on given interval
-  var reloadIntervalMillis = parseInt((process.env.RELOAD_INTERVAL_MINUTES) ? process.env.RELOAD_INTERVAL_MINUTES : "0") * 60 * 1000
-  var lastReloadMillis = (config.lastReload) ? config.lastReload : 0
-  var lastReloadElapsed = Date.now() - lastReloadMillis
-  console.log(`last reload was ${lastReloadElapsed}ms ago`)
-  if (lastReloadElapsed < reloadIntervalMillis) {
-    console.log(`reload not yet required`)
-    return res.sendStatus(200)
-  }
-
-  // retrieve discord client
-  const client = await getDiscordClient(req.query["project"])
-  if (!client) {
-    return res.sendStatus(404)
-  }
-
-  // iterate the hodler list
-  var hodlerList = await getHodlerList(req.query["project"])
-  for (let n in hodlerList) {
-
-    // remove access if no matches
-    const holder = hodlerList[n]
-    if (!await isHolderVerified(holder.publicKey, config)) {
-
-      // parse the discord address to remove
-      console.log(`address is no longer holding expected tokens: ${holder.publicKey}`)
-      hodlerList.splice(n, 1)
-      const username = holder.discordName.split('#')[0]
-      const discriminator = holder.discordName.split('#')[1]
-
-      // remove role from discord user
-      const myGuild = await client.guilds.cache.get(config.discord_server_id)
-      if (!myGuild) {
-        console.log("error retrieving server information")
-        return res.sendStatus(500)
-      }
-      const role = await myGuild.roles.cache.find((r: any) => r.id === config.discord_role_id)
-      if (!role) {
-        console.log("error retrieving role information")
-        return res.sendStatus(500)
-      }
-      const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
-      if (!doer) {
-        console.log("error retrieving user information")
-        return res.sendStatus(500)
-      }
-      await doer.roles.remove(role)
-    }
-  }
-
-  // update the config with current timestamp
-  config.lastReload = Date.now()
-  await write(getConfigFilePath(req.query["project"]), JSON.stringify(config))
-
-  // update the hodler file and return successfully
-  await write(getHodlerFilePath(req.query["project"]), JSON.stringify(hodlerList))
-  res.sendStatus(200)
+  res.sendStatus(await reloadHolders(req.query["project"]))
 })
 
 // export the app

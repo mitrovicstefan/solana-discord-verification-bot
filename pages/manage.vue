@@ -14,7 +14,7 @@
         <div class="block text-gray-700 text-sm mb-5">
           We've provided this video to show you how to get your Solana NFT project up and running with our tools in just 10 minutes.
         </div>
-        <iframe width="450" height="253" src="https://www.youtube.com/embed/QFRDIN4athM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        <iframe width="100%" height="253" src="https://www.youtube.com/embed/QFRDIN4athM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
     <div v-if="step === 2">
       <h2 class="block text-gray-700 text-xl font-bold mb-2">Signature request</h2>
@@ -70,6 +70,24 @@
         <h2 class="block text-gray-700 text-xl font-bold mb-2">All set!</h2>
         <div class="block text-gray-700 text-sm mb-2">
           Successfully updated project.
+        </div>
+    </div>
+    <div v-if="step === 8">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Looks like you already own a project</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Update your existing project instead of creating a new one.
+        </div>
+    </div>
+    <div v-if="step === 9">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Configuration already exists!</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          The project name or Discord server ID is already set up on our service. Try a new configuration.
+        </div>
+    </div>
+    <div v-if="step === 10">
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Invalid configuration</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+          Double check your configuration values, something doesn't look right.
         </div>
     </div>
     <div v-if="this.configResponse">
@@ -196,8 +214,16 @@ export default Vue.extend({
             this.discord_remaining_verifications = this.$config.max_free_verifications - res.data.verifications
           }
         } catch(e) {
-            console.log("API ERROR", e)
-            this.step = 4
+            if (e.toString().includes("status code 409")) {
+              this.step = 9
+            } else if(e.toString().includes("status code 403")) {
+              this.step = 8
+            } else if(e.toString().includes("status code 400")) {
+              this.step = 10
+            } else {
+              console.log("API ERROR", e)
+              this.step = 4
+            }
             return
         }
         console.log("Status:" + res.status)
