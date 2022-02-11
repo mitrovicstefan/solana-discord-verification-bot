@@ -356,6 +356,7 @@ app.get('/getConfig', async (req: Request, res: Response) => {
     return res.json({
       client_id: config.discord_client_id,
       redirect_uri: config.discord_redirect_url,
+      project_friendly_name: config.project_friendly_name,
       message: config.message
     })
   }
@@ -387,10 +388,12 @@ app.get('/getProject', async (req: Request, res: Response) => {
     // remove sensitive data
     var returnConfig = {
       project: userProject.projectName,
+      project_friendly_name: config.project_friendly_name,
       is_holder: config.is_holder,
       discord_client_id: config.discord_client_id,
       discord_server_id: config.discord_server_id,
       discord_role_id: config.discord_role_id,
+      discord_redirect_url: config.discord_redirect_url,
       update_authority: config.update_authority,
       spl_token: config.spl_token,
       royalty_wallet_id: config.royalty_wallet_id,
@@ -494,6 +497,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
   var newProjectConfig = {
     owner_public_key: publicKeyString,
     is_holder: isHolder,
+    project_friendly_name: xss(req.body.project),
     message: `Verify ${xss(req.body.project)} Discord roles`,
     discord_client_id: validateRequired("discord_client_id", xss(req.body.discord_client_id)),
     discord_server_id: validateRequired("discord_server_id", xss(req.body.discord_server_id)),
@@ -585,6 +589,9 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   }
   if (req.body.update_authority) {
     config.update_authority = xss(req.body.update_authority)
+  }
+  if (req.body.project_friendly_name) {
+    config.project_friendly_name = xss(req.body.project_friendly_name)
   }
   if (req.body.royalty_wallet_id) {
     config.royalty_wallet_id = xss(req.body.royalty_wallet_id)

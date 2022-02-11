@@ -31,6 +31,7 @@
         <div class="mb-4">
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Project info</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project" v-if="!this.configResponse" placeholder="Project name">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project_friendly_name" v-if="this.configResponse" placeholder="Collection name">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="update_authority" placeholder="Update authority ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="royalty_wallet_id" placeholder="Royalty wallet ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="spl_token" placeholder="White list token ID">
@@ -117,6 +118,7 @@ export default Vue.extend({
       publicKey: '',
       isUpdate: false,
       project: '',
+      project_friendly_name: '',
       update_authority: '',
       spl_token: '',
       royalty_wallet_id: '',
@@ -173,6 +175,7 @@ export default Vue.extend({
         this.project = res.data.project
         this.update_authority = res.data.update_authority
         this.spl_token = res.data.spl_token
+        this.project_friendly_name = res.data.project_friendly_name
         this.royalty_wallet_id = res.data.royalty_wallet_id
         this.discord_server_id = res.data.discord_server_id
         this.discord_role_id = res.data.discord_role_id
@@ -194,6 +197,8 @@ export default Vue.extend({
             update_authority: this.update_authority,
             // @ts-ignore
             spl_token: this.spl_token,
+            // @ts-ignore
+            project_friendly_name: this.project_friendly_name,
             // @ts-ignore
             royalty_wallet_id: this.royalty_wallet_id,
             // @ts-ignore
