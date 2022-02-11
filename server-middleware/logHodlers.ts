@@ -255,7 +255,7 @@ const isHolderVerified = async (walletAddress: string, config: any) => {
   }
 
   // Optionally check for spl-tokens matching mint IDs if NFTs were not found
-  if (matched.length == 0) {
+  if (matched.length == 0 && config.spl_token && config.spl_token != "") {
     try {
       splTokenBalance = await getTokenBalance(walletAddress, config.spl_token)
       console.log(`hodler ${walletAddress} spl token balance: ${splTokenBalance}`)
