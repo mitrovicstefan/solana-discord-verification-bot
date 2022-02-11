@@ -1,7 +1,7 @@
 <template >
   <div>
     <div v-if="step === 1">
-        <h2 class="block text-gray-700 text-xl font-bold mb-2">Let's get started!</h2>
+        <h2 class="block text-gray-700 text-2xl font-bold mb-2">Let's get started!</h2>
         <div class="block text-gray-700 text-sm mb-5">
           Your NFT project tools are associated with your Solana wallet address. Connect your wallet to login.
         </div>
