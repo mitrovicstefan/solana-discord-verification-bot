@@ -2,7 +2,7 @@
     <div>
         <h2 class="block text-gray-700 text-2xl font-bold mb-2">Welcome!</h2>
         <div class="block text-gray-700 text-sm mb-2">
-        These are the FREE Solana NFT project tools you've been looking for. Click <a class=hyperlink href="/manage">manage</a> to setup your project.
+        These are the FREE Solana NFT project tools you've been looking for. You can <a class=hyperlink href="/manage">setup your project</a> in less than 10 minutes!
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">What is it?</h2>
         <div class="block text-gray-700 text-sm mb-2">
@@ -10,11 +10,11 @@
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">How do I use it?</h2>
         <div class="block text-gray-700 text-sm mb-2">
-        Once your project is configured, users can navigate to a custom URL to verify their NFT status on your Discord server. Your verified users are validated every 30 minutes to ensure the role is removed if your NFT is no longer in their wallet.
+        Once your project is configured, users can navigate to a custom URL to verify their NFT status on your Discord server. Your verified users are continuously revalidated to ensure the role is removed if your NFT is no longer in their wallet.
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">Why is it free?</h2>
         <div class="block text-gray-700 text-sm mb-2">
-        We're offering this free hosted service because we believe in giving back to the Solana NFT community. All NFT projects can use the service with a <b>limit of {{ this.$config.max_free_verifications }}</b> unique user verifications. Project owners holding one of our NFT's unlock unlimited verifications.
+        We're offering this free hosted service because we believe in giving back to the Solana NFT community. Project owners holding a <a class="hyperlink" href="https://www.nft4cause.app/mint">Pandemic Heroes NFT</a> unlock additional features such as trait based role assignment, sales bots, white glove Discord configuration and future enhancements.
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">Who are we?</h2>
         <div class="block text-gray-700 text-sm mb-2">
@@ -22,7 +22,7 @@
         </div>
         <h2 class="block text-gray-700 text-lg font-bold mb-2">Opensource</h2>
         <div class="block text-gray-700 text-sm mb-2">
-        We believe in Opensource software, and the code for this service is freely <a class=hyperlink href="https://github.com/qrtp/solana-discord-verification-bot">available on GitHub</a>.
+        We believe in Opensource software. All the code for our Solana NFT services is freely <a class=hyperlink href="https://github.com/qrtp/solana-discord-verification-bot">available on GitHub</a>.
         </div>
     </div>
 </template>
