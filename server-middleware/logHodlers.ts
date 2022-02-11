@@ -141,6 +141,10 @@ function getServerFilePath(serverID: any) {
   return `./config/server-${serverID}.json`
 }
 
+function getSalesFilePath(updateAuthority: any) {
+  return `sales-${updateAuthority}-console.json`
+}
+
 // validates signature of a given message
 function isSignatureValid(publicKeyString: string, signature: any, message: any) {
   const encodedMessage = new TextEncoder().encode(message)
@@ -398,6 +402,20 @@ app.get('/getProject', async (req: Request, res: Response) => {
     return res.json(returnConfig)
   } catch (e) {
     return res.sendStatus(404)
+  }
+})
+
+// Endpoint to get all hodlers - protect it if you'd like
+app.get('/getProjectSales', async (req: Request, res: Response) => {
+  try {
+    var config = await getConfig(req.query["project"])
+    if (!config) {
+      return res.sendStatus(404)
+    }
+    return res.json(JSON.parse(await read(getSalesFilePath(config.update_authority))))
+  } catch (e) {
+    console.log("error querying project sales", e)
+    return res.json([])
   }
 })
 
