@@ -11,9 +11,14 @@
         <div class="flex flex-wrap -mx-4 -mb-8">
           <div v-if="this.sales.length == 0" class="px-4 mb-8">Watching for sales, but have not detected any so far!</div>
           <div v-for="sale in sales" class="md:w-1/3 px-4 mb-8"> 
-            <img class="rounded shadow-md" :src="sale.data.nftInfo.image" alt="">
-            <div class="mt-2 text-gray-700">
+            <a :href="sale.data.nftInfo.mintLink">
+              <img class="rounded shadow-md" :src="sale.data.nftInfo.image" alt="">
+            </a>
+            <div class="mt-2 text-gray-700 text-xs">
               <a :href="sale.data.txLink">{{sale.data.nftInfo.id}} @ {{sale.data.saleAmount}} SOL</a>
+            </div>
+            <div class="mt-0 text-gray-400 text-xs">
+              {{sale.data.relativeTime}}
             </div>
           </div>
         </div>
@@ -30,6 +35,7 @@
 <script lang="ts">
 import Vue from 'vue'
 import axios from 'axios'
+var hdate = require('human-date')
 
 export default Vue.extend({
   data() {
@@ -58,7 +64,9 @@ export default Vue.extend({
     try {
       projectSales = await axios.get('/api/getProjectSales?project=' + projectName)
       for (var i=0; i < projectSales.data.sales.length; i++) {
+        projectSales.data.sales[i].data.relativeTime = hdate.relativeTime(new Date(projectSales.data.sales[i].data.time*1000))
         projectSales.data.sales[i].data.txLink = "https://solscan.io/tx/" + projectSales.data.sales[i].data.txSignature
+        projectSales.data.sales[i].data.nftInfo.mintLink = "https://solscan.io/token/" + projectSales.data.sales[i].data.nftInfo.mint
       }
 
       // render the properties

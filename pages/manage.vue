@@ -3,7 +3,7 @@
     <div v-if="step === 1">
         <h2 class="block text-gray-700 text-2xl font-bold mb-2">Let's get started!</h2>
         <div class="block text-gray-700 text-sm mb-5">
-          Your NFT project tools are associated with your Solana wallet address. Connect your wallet to login.
+          Your NFT project tools are associated with your Solana wallet address. Connect your wallet to access the project management console.
         </div>
         <div class="block text-gray-700 text-sm mb-5">
           <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" @click="connectWallet" type="button">
@@ -14,7 +14,7 @@
         <div class="block text-gray-700 text-sm mb-5">
           We've provided this video to show you how to get your Solana NFT project up and running with our tools in just 10 minutes.
         </div>
-        <iframe width="100%" height="253" src="https://www.youtube.com/embed/QFRDIN4athM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        <iframe width="100%" height="323" src="https://www.youtube.com/embed/QFRDIN4athM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
     <div v-if="step === 2">
       <h2 class="block text-gray-700 text-xl font-bold mb-2">Signature request</h2>
@@ -92,13 +92,16 @@
         </div>
     </div>
     <div v-if="this.configResponse">
-        <br>
-        <h2 class="block text-gray-700 text-xl font-bold mb-2">My verification URL</h2>
+        <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Discord Verification Service</h2>
         <div class="block text-sm mb-2"> 
           <a class=hyperlink :href="this.discord_redirect_url">{{discord_redirect_url}}</a>
         </div>
-        <div class="block text-gray-700 text-sm mb-2">
+        <div class="block text-gray-700 text-sm">
           Quota remaining: {{discord_remaining_verifications}}
+        </div>
+        <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Sales Tracking</h2>
+        <div class="block text-sm mb-2"> 
+          <a class=hyperlink :href="this.discord_redirect_url+'/sales'">{{discord_redirect_url}}/sales</a>
         </div>
     </div>
   </div>

@@ -2,7 +2,7 @@
   <div class="bg-gray-100 flex-col h-screen">
     <AppHeader />
     <div class="flex justify-center items-center flex-col mt-10 mr-10 ml-10">
-        <div class="w-full max-w-xl">
+        <div class="w-full max-w-2xl">
             <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
             <Nuxt />
             </div>

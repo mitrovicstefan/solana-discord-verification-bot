@@ -5464,6 +5464,11 @@
   "resolved" "https://registry.npmjs.org/https-browserify/-/https-browserify-1.0.0.tgz"
   "version" "1.0.0"
 
+"human-date@^1.4.0":
+  "integrity" "sha1-iLtivYBNAP0S7i9H3Dw7ux5V+Zo="
+  "resolved" "https://registry.npmjs.org/human-date/-/human-date-1.4.0.tgz"
+  "version" "1.4.0"
+
 "human-signals@^2.1.0":
   "integrity" "sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw=="
   "resolved" "https://registry.npmjs.org/human-signals/-/human-signals-2.1.0.tgz"
