@@ -1,11 +1,11 @@
 <template class="main">
   <div>
-      <div class="block text-gray-700 text-sm" v-if="step === 1">
-        Loading your discord username
+      <div class="block text-gray-700 text-sm mx-auto" v-if="step === 1">
+        <img class="mx-auto" src="/loading.gif">
       </div>
 
-      <div class="block text-gray-700 text-sm" v-if="step === 2">
-        Getting your username
+      <div class="block text-gray-700 text-sm mx-auto" v-if="step === 2">
+        <img class="mx-auto" src="/loading.gif">
       </div>
 
       <div class="block text-gray-700 text-sm" v-if="step > 2">
@@ -13,8 +13,8 @@
         <h2 class="block text-gray-700 text-2xl font-bold mb-2">{{discordUsername}}</h2>
       </div>
 
-      <div class="block text-gray-700 text-sm" v-if="step === 3">
-        Connecting to phantom
+      <div class="block text-gray-700 text-sm mx-auto" v-if="step === 3">
+        <img class="mx-auto" src="/loading.gif">
       </div>
       <div class="block text-gray-700 text-sm" v-if="step === 4">
         Please sign the message to verify that you're the owner of your wallet. We are about to make sure it holds the required tokens for your Discord validation.

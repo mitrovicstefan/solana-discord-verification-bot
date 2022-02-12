@@ -1,7 +1,7 @@
 <template class="main">
   <div>
-      <div class="block text-gray-700 text-sm" v-if="step === 1">
-        Loading project sales
+      <div class="block text-gray-700 text-sm mx-auto" v-if="step === 1">
+        <img class="mx-auto" src="/loading.gif">
       </div>
       <div class="block text-gray-700 text-sm" v-if="step === 2">
         Project not found.
