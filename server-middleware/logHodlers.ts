@@ -82,10 +82,24 @@ initializeStorage()
  * Background jobs
  */
 
-// ensure the Discord client is loaded for all of the configured projects.
-cron.schedule('* * * * *', async function () {
+// ensure the Discord client is loaded for all of the configured projects. This is 
+// important for clients to be initialized, so that "!verify" messages are received
+// by the server and responses provided to discord users.
+var cronDiscordClientRunning = false
+cron.schedule('*/5 * * * *', async function () {
+
+  // start timestamp for monitoring
+  var startTimestamp = Date.now()
+
   try {
+    // don't run if another job is already running
+    if (cronDiscordClientRunning) {
+      console.log("client initialization is already running")
+      return
+    }
+
     console.log("loading all projects to initialize discord clients")
+    cronDiscordClientRunning = true
     var allProjects = await getAllProjects()
     console.log("retrieved projects", allProjects.length)
     for (var i = 0; i < allProjects.length; i++) {
@@ -99,17 +113,35 @@ cron.schedule('* * * * *', async function () {
   } catch (e2) {
     console.log("error retrieving project list", e2)
   }
+
+  // set flag to indicate job is no longer running
+  var elapsed = Date.now() - startTimestamp
+  console.log(`discord client initialization completed in ${elapsed}ms`)
+  cronDiscordClientRunning = false
 })
 
 // validate project holders every 30 minutes
+var cronHodlerValidationRunning = false
 cron.schedule('*/30 * * * *', async function () {
+
+  // start timestamp for monitoring
+  var startTimestamp = Date.now()
+
   try {
-    console.log("loading all projects for revalidation")
+    // don't run if another job is already running
+    if (cronHodlerValidationRunning) {
+      console.log("hodler validation is already running")
+      return
+    }
+
+    // load projets and validate holders 
+    console.log("loading all projects for holder revalidation")
+    cronHodlerValidationRunning = true
     var allProjects = await getAllProjects()
     console.log("retrieved projects", allProjects.length)
     for (var i = 0; i < allProjects.length; i++) {
       try {
-        console.log(`validating holders: ${allProjects[i]}`)
+        console.log(`validating project holders: ${allProjects[i]}`)
         await reloadHolders(allProjects[i])
       } catch (e1) {
         console.log("error loading project", e1)
@@ -118,6 +150,11 @@ cron.schedule('*/30 * * * *', async function () {
   } catch (e2) {
     console.log("error retrieving project list", e2)
   }
+
+  // set flag to indicate job is no longer running
+  var elapsed = Date.now() - startTimestamp
+  console.log(`holder revalidation completed in ${elapsed}ms`)
+  cronHodlerValidationRunning = false
 })
 
 
@@ -349,45 +386,26 @@ const reloadHolders = async (project: any) => {
 // Configure the middleware to parse JSON
 app.use(bodyParser.json())
 
-// Retrieves the clientside config for discord validation
-app.get('/getConfig', async (req: Request, res: Response) => {
-  var config = await getConfig(req.query["project"])
-  if (config) {
-    return res.json({
-      client_id: config.discord_client_id,
-      redirect_uri: config.discord_redirect_url,
-      project_friendly_name: config.project_friendly_name,
-      message: config.message
-    })
-  }
-  return res.sendStatus(404)
-})
-
-// Endpoint to get all hodlers - protect it if you'd like
-app.get('/getHodlers', async (req: Request, res: Response) => {
-  var config = await getConfig(req.query["project"])
-  if (config) {
-    return res.json(await getHodlerList(req.query["project"]))
-  }
-  return res.sendStatus(404)
-})
-
 // Endpoint to get all hodlers - protect it if you'd like
 app.get('/getProject', async (req: Request, res: Response) => {
   try {
 
-    // retrieve existing user project
-    var userProject = JSON.parse(await read(getPublicKeyFilePath(req.query["publicKey"])))
+    // use project query string value if present
+    var projectName = req.query["project"]
+    if (!projectName || projectName == "") {
+      var userProject = JSON.parse(await read(getPublicKeyFilePath(req.query["publicKey"])))
+      projectName = userProject.projectName
+    }
 
     // retrieve project config
-    var config = await getConfig(userProject.projectName)
+    var config = await getConfig(projectName)
     if (!config) {
       return res.sendStatus(404)
     }
 
     // remove sensitive data
     var returnConfig = {
-      project: userProject.projectName,
+      project: projectName,
       project_friendly_name: config.project_friendly_name,
       is_holder: config.is_holder,
       discord_client_id: config.discord_client_id,
@@ -398,12 +416,14 @@ app.get('/getProject', async (req: Request, res: Response) => {
       spl_token: config.spl_token,
       royalty_wallet_id: config.royalty_wallet_id,
       verifications: config.verifications,
+      message: config.message,
       discord_bot_token: defaultRedactedString
     }
 
     // return the configuration
     return res.json(returnConfig)
   } catch (e) {
+    console.log("error retrieving project", e)
     return res.sendStatus(404)
   }
 })
@@ -425,9 +445,14 @@ app.get('/getProjectSales', async (req: Request, res: Response) => {
 app.get('/getProjects', async (req: Request, res: Response) => {
   try {
     var projectNames: any[] = []
-    discordClients.forEach((v, k) => {
-      projectNames.push(k)
-    })
+    for (const project of discordClients.keys()) {
+      var config = await getConfig(project)
+      projectNames.push({
+        project: project,
+        is_holder: config.is_holder,
+        verifications: config.verifications
+      })
+    }
     res.json(projectNames)
   } catch (e) {
     return res.sendStatus(404)
@@ -697,6 +722,15 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   // write result and return successfully
   await write(getHodlerFilePath(req.body.projectName), JSON.stringify(hodlerList))
   res.sendStatus(200)
+})
+
+// Endpoint to get all hodlers - protect it if you'd like
+app.get('/getHodlers', async (req: Request, res: Response) => {
+  var config = await getConfig(req.query["project"])
+  if (config) {
+    return res.json(await getHodlerList(req.query["project"]))
+  }
+  return res.sendStatus(404)
 })
 
 // Endpoint to validate current hodlers

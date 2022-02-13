@@ -53,7 +53,7 @@ export default Vue.extend({
 
     // retrieve project config
     try { 
-      var projectConfig = await axios.get('/api/getConfig?project=' + projectName)
+      var projectConfig = await axios.get('/api/getProject?project=' + projectName)
       this.projectName = projectConfig.data.project_friendly_name
     } catch (e) {
       console.log(e) 

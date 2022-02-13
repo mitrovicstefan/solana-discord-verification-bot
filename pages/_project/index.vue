@@ -65,7 +65,7 @@ export default Vue.extend({
     var projectName = this.$route.path.replaceAll("/","")
     var projectConfig
     try {
-      projectConfig = await axios.get('/api/getConfig?project=' + projectName)
+      projectConfig = await axios.get('/api/getProject?project=' + projectName)
     } catch (e) {
       console.log(e) 
     }
@@ -81,7 +81,7 @@ export default Vue.extend({
       .map(v => v.split("="))
       .reduce( (pre, [key, value]) => ({ ...pre, [key]: value }), {})
     if (!url_params.access_token) {
-      const url = `https://discord.com/api/oauth2/authorize?client_id=${projectConfig.data.client_id}&redirect_uri=${projectConfig.data.redirect_uri}&response_type=token&scope=identify`
+      const url = `https://discord.com/api/oauth2/authorize?client_id=${projectConfig.data.discord_client_id}&redirect_uri=${projectConfig.data.discord_redirect_url}&response_type=token&scope=identify`
       window.location.href = url
     }
 
