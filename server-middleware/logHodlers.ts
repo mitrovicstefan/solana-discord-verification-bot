@@ -182,6 +182,10 @@ function getSalesFilePath(updateAuthority: any) {
   return `sales-${updateAuthority}-console.json`
 }
 
+function getSalesTrackerLockPath() {
+  return "sales-tracker-running"
+}
+
 // validates signature of a given message
 function isSignatureValid(publicKeyString: string, signature: any, message: any) {
   const encodedMessage = new TextEncoder().encode(message)
@@ -444,7 +448,12 @@ app.get('/getProjectSales', async (req: Request, res: Response) => {
 
 app.get('/getProjects', async (req: Request, res: Response) => {
   try {
-    var projectNames: any[] = []
+    var projectData: any[] = []
+    var aggregateData: any = {
+      lastSalesQuery: 0,
+      sales: 0,
+      verifications: 0
+    }
     for (const project of discordClients.keys()) {
       var config = await getConfig(project)
       var projectSales: any = {}
@@ -453,14 +462,29 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       } catch (e2) {
         console.log("error parsing sales file", e2)
       }
-      projectNames.push({
+      var data = {
         project: project,
         is_holder: config.is_holder,
         verifications: config.verifications,
         sales: (projectSales.sales) ? projectSales.sales.length : 0
-      })
+      }
+      projectData.push(data)
+      aggregateData.verifications += data.verifications
+      aggregateData.sales += data.sales
     }
-    res.json(projectNames)
+
+    // retrieve the elapsed time since last sales query
+    var lockFileContents = await read(getSalesTrackerLockPath())
+    if (lockFileContents && lockFileContents != "") {
+      var elapsedSinceLastRun = (Date.now() - new Date(parseInt(lockFileContents)).getTime()) / 1000
+      aggregateData.lastSalesQuery = elapsedSinceLastRun
+    }
+
+    // return the data
+    res.json({
+      metrics: aggregateData,
+      projects: projectData
+    })
   } catch (e) {
     return res.sendStatus(404)
   }
