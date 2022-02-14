@@ -1,6 +1,13 @@
 import { initializeCOS, listCOSFiles, readCOSFile, useCOS, writeCOSFile } from "./ibm-cos";
 
 const fs = require('fs')
+const NodeCache = require("node-cache")
+
+// write-through cache to ease traffic to COS layer. Default TTL
+// of 10 minutes will purge old data.
+const cosCache = new NodeCache({
+    stdTTL: 600,
+})
 
 export function initializeStorage() {
 
@@ -41,8 +48,17 @@ export async function list(directoryPath: string, filter: string) {
 export async function read(fileName: string) {
     console.log(`reading from ${fileName}`)
     if (useCOS()) {
+
+        // check the cache for hit
+        var cacheHit = cosCache.get(fileName)
+        if (cacheHit) {
+            console.log(`cache hit reading file: ${fileName}`)
+            return cacheHit
+        }
         var cosContents = await readCOSFile(fileName)
-        return (cosContents) ? cosContents : ""
+        var cosContentsToReturn = (cosContents) ? cosContents : ""
+        cosCache.set(fileName, cosContentsToReturn)
+        return cosContentsToReturn
     }
     try {
         var contents: string
@@ -57,6 +73,7 @@ export async function read(fileName: string) {
 export async function write(fileName: string, contents: string) {
     console.log(`writing to ${fileName}`)
     if (useCOS()) {
+        cosCache.set(fileName, contents)
         return await writeCOSFile(fileName, contents)
     }
     try {
