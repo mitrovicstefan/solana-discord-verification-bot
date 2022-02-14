@@ -447,10 +447,17 @@ app.get('/getProjects', async (req: Request, res: Response) => {
     var projectNames: any[] = []
     for (const project of discordClients.keys()) {
       var config = await getConfig(project)
+      var projectSales: any = {}
+      try {
+        projectSales = JSON.parse(await read(getSalesFilePath(config.update_authority)))
+      } catch (e2) {
+        console.log("error parsing sales file", e2)
+      }
       projectNames.push({
         project: project,
         is_holder: config.is_holder,
-        verifications: config.verifications
+        verifications: config.verifications,
+        sales: (projectSales.sales) ? projectSales.sales.length : 0
       })
     }
     res.json(projectNames)
