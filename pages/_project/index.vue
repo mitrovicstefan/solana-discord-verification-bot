@@ -37,6 +37,12 @@
       <div class="block text-gray-700 text-sm" v-if="step === 9">
         Exceeded number of free verifications. Ask your project owner to get one of our NFTs to unlock unlimited verifications.
       </div>
+      <div class="block text-gray-700 text-sm" v-if="step === 10">
+        We're having trouble connecting to your wallet. The currently supported wallet configuration is <a class="hyperlink" href="https://phantom.app/">Phantom</a> with browser extension on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
+        <br>
+        <br>
+        Please ensure Phantom is available on your device and try again.
+      </div>
       <div class="block text-gray-700 text-sm mt-5" v-if="step > 2">
         <h2 class="block text-gray-700 text-lg font-bold mb-2">What is NFT 4 Cause?</h2>
         <div class="block text-gray-700 text-sm mb-2">
@@ -108,6 +114,8 @@ export default Vue.extend({
       connection = await window.solana.connect()
     } catch (e) {
       console.log(e)
+      this.step = 10
+      return
     }
 
     this.step = 4
