@@ -120,36 +120,41 @@ export default Vue.extend({
 
     this.step = 4
 
-    // Signs message to verify authority
-    const message = projectConfig.data.message
-    const encodedMessage = new TextEncoder().encode(message)
-    const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-
-    // Sends signature to the backend
-    let res2
     try {
-      res2 = await axios.post('/api/logHodlers', {
-        projectName: projectName,
-        discordName: this.discordUsername,
-        signature: signedMessage.signature,
-        // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
-        publicKey: connection.publicKey.toString()
-      })
-      console.log("Status:" + res2.status)
-      if (res2.status == 200) {
-        this.step = 5 
-      } else if (res2.status == 500) { 
-        this.step = 7 
+      // Signs message to verify authority
+      const message = projectConfig.data.message
+      const encodedMessage = new TextEncoder().encode(message)
+      const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
+
+      // Sends signature to the backend
+      let res2
+      try {
+        res2 = await axios.post('/api/logHodlers', {
+          projectName: projectName,
+          discordName: this.discordUsername,
+          signature: signedMessage.signature,
+          // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
+          publicKey: connection.publicKey.toString()
+        })
+        console.log("Status:" + res2.status)
+        if (res2.status == 200) {
+          this.step = 5 
+        } else if (res2.status == 500) { 
+          this.step = 7 
+        }
+      } catch (e) {
+        if (e.toString().includes("status code 403")) {
+          this.step = 9
+        } else if (e.toString().includes("status code 401")) {
+          this.step = 6
+        } else {
+          console.log("API ERROR", e)
+          this.step = 7
+        }
       }
-    } catch (e) {
-      if (e.toString().includes("status code 403")) {
-        this.step = 9
-      } else if (e.toString().includes("status code 401")) {
-        this.step = 6
-      } else {
-        console.log("API ERROR", e)
-        this.step = 7
-      }
+    } catch (e2) {
+      console.log(e2)
+      this.step = 10
     }
   }
 })
