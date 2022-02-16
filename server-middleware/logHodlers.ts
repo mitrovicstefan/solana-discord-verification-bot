@@ -416,6 +416,7 @@ app.get('/getProject', async (req: Request, res: Response) => {
       discord_server_id: config.discord_server_id,
       discord_role_id: config.discord_role_id,
       discord_redirect_url: config.discord_redirect_url,
+      discord_webhook: config.discord_webhook,
       update_authority: config.update_authority,
       spl_token: config.spl_token,
       royalty_wallet_id: config.royalty_wallet_id,
@@ -450,6 +451,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
   try {
     var projectData: any[] = []
     var aggregateData: any = {
+      projects: discordClients.size,
       lastSalesQuery: 0,
       sales: 0,
       verifications: 0
@@ -560,6 +562,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
     discord_role_id: validateRequired("discord_role_id", xss(req.body.discord_role_id)),
     discord_redirect_url: `${process.env.BASE_URL}/${projectNameCamel}`,
     discord_bot_token: validateRequired("discord_bot_token", xss(req.body.discord_bot_token)),
+    discord_webhook: xss(req.body.discord_webhook),
     update_authority: validateRequired("update_authority", xss(req.body.update_authority)),
     royalty_wallet_id: xss(req.body.royalty_wallet_id),
     spl_token: xss(req.body.spl_token),
@@ -642,6 +645,9 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   }
   if (req.body.discord_bot_token && req.body.discord_bot_token != defaultRedactedString) {
     config.discord_bot_token = xss(req.body.discord_bot_token)
+  }
+  if (req.body.discord_webhook) {
+    config.discord_webhook = xss(req.body.discord_webhook)
   }
   if (req.body.update_authority) {
     config.update_authority = xss(req.body.update_authority)

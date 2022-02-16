@@ -27,7 +27,7 @@
     </div>
     <div v-if="step === 3">
       <form @submit.prevent="submitForm" >
-        <h2 class="block text-gray-700 text-xl font-bold mb-2">Configuration</h2>
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Project configuration</h2>
         <div class="mb-4">
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Project info</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project" v-if="!this.configResponse" placeholder="Project name">
@@ -46,7 +46,11 @@
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_client_id" placeholder="Discord bot client ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="password" v-model="discord_bot_token" placeholder="Discord bot token">
         </div>
-          <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Save</button>
+        <div class="mb-4">
+          <h2 class="block text-gray-700 text-sm font-bold mb-2">Sales tracking notifications</h2>
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_webhook" placeholder="Discord webhook URL">
+        </div>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Save</button>
       </form>
     </div>
     <div v-if="step === 4">
@@ -56,7 +60,7 @@
         </div>
     </div>
     <div v-if="step === 5">
-        <h2 class="block text-gray-700 text-xl font-bold mb-2">All set!</h2>
+        <h2 class="block text-gray-700 text-2xl font-bold mb-2">All set!</h2>
         <div class="block text-gray-700 text-sm mb-2">
           Successfully created project.
         </div>
@@ -68,7 +72,7 @@
         </div>
     </div>
     <div v-if="step === 7">
-        <h2 class="block text-gray-700 text-xl font-bold mb-2">All set!</h2>
+        <h2 class="block text-gray-700 text-2xl font-bold mb-2">All set!</h2>
         <div class="block text-gray-700 text-sm mb-2">
           Successfully updated project.
         </div>
@@ -94,14 +98,23 @@
     <div v-if="this.configResponse">
         <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Discord Verification Service</h2>
         <div class="block text-sm mb-2"> 
-          <a class=hyperlink :href="this.discord_redirect_url">{{discord_redirect_url}}</a>
+          ✅ <a class=hyperlink :href="this.discord_redirect_url">{{discord_redirect_url}}</a>
         </div>
-        <div class="block text-gray-700 text-sm">
-          Quota remaining: {{discord_remaining_verifications}}
+        <div v-if="discord_remaining_verifications != '0'" class="block text-gray-700 text-sm">
+          ✅ Quota remaining: {{discord_remaining_verifications}}
+        </div>
+        <div v-if="discord_remaining_verifications == '0'" class="block text-gray-700 text-sm">
+          🚫 Quota remaining: {{discord_remaining_verifications}} (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Sales Tracking</h2>
         <div class="block text-sm mb-2"> 
-          <a class=hyperlink :href="this.discord_redirect_url+'/sales'">{{discord_redirect_url}}/sales</a>
+          ✅ <a class=hyperlink :href="this.discord_redirect_url+'/sales'">{{discord_redirect_url}}/sales</a>
+        </div>
+        <div v-if="this.is_holder && this.discord_webhook" class="block text-gray-700 text-sm">
+          ✅ Discord notifications
+        </div>
+        <div v-if="!this.is_holder || !this.discord_webhook" class="block text-gray-700 text-sm">
+          🚫 Discord notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
     </div>
   </div>
@@ -129,9 +142,11 @@ export default Vue.extend({
       discord_role_id: '',
       discord_client_id: '',
       discord_bot_token: '',
+      discord_webhook: '',
       configResponse: null,
       discord_redirect_url: '',
-      discord_remaining_verifications: ''
+      discord_remaining_verifications: '',
+      is_holder: false
     }
   },
   async mounted() {
@@ -163,6 +178,7 @@ export default Vue.extend({
         res = await axios.get('/api/getProject?publicKey='+this.publicKey)
         this.configResponse = res.data
         this.discord_redirect_url = res.data.discord_redirect_url
+        this.is_holder = res.data.is_holder
         if (res.data.is_holder) {
           this.discord_remaining_verifications = "unlimited"
         } else {
@@ -184,6 +200,7 @@ export default Vue.extend({
         this.discord_role_id = res.data.discord_role_id
         this.discord_client_id = res.data.discord_client_id
         this.discord_bot_token = res.data.discord_bot_token
+        this.discord_webhook = res.data.discord_webhook
       }
       this.step = 3
     },
@@ -211,10 +228,13 @@ export default Vue.extend({
             // @ts-ignore
             discord_client_id: this.discord_client_id,
             // @ts-ignore
-            discord_bot_token: this.discord_bot_token
+            discord_bot_token: this.discord_bot_token,
+            // @ts-ignore
+            discord_webhook: this.discord_webhook
           })
           this.configResponse = res.data
           this.discord_redirect_url = res.data.discord_redirect_url
+          this.is_holder = res.data.is_holder
           if (res.data.is_holder) {
             this.discord_remaining_verifications = "unlimited"
           } else {
