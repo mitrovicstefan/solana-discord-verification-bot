@@ -416,12 +416,12 @@ app.get('/getProject', async (req: Request, res: Response) => {
       discord_server_id: config.discord_server_id,
       discord_role_id: config.discord_role_id,
       discord_redirect_url: config.discord_redirect_url,
-      discord_webhook: config.discord_webhook,
       update_authority: config.update_authority,
       spl_token: config.spl_token,
       royalty_wallet_id: config.royalty_wallet_id,
       verifications: config.verifications,
       message: config.message,
+      discord_webhook: defaultRedactedString,
       discord_bot_token: defaultRedactedString
     }
 
@@ -626,14 +626,17 @@ app.post('/updateProject', async (req: Request, res: Response) => {
     return res.sendStatus(404)
   }
 
-  // Is the address a system level token holder?
-  var isHolder = await isHolderVerified(publicKeyString, {
-    update_authority: process.env.UPDATE_AUTHORITY,
-    spl_token: process.env.SPL_TOKEN
-  })
+  // Has the management wallet become a token holder to unlock premium features? Only
+  // make this check if the user is not currently a holder. We will allow previous
+  // holders to remain holders even if the NFT is transferred out of the wallet.
+  if (!config.is_holder) {
+    config.is_holder = await isHolderVerified(publicKeyString, {
+      update_authority: process.env.UPDATE_AUTHORITY,
+      spl_token: process.env.SPL_TOKEN
+    })
+  }
 
   // update values that have been modified
-  config.is_holder = isHolder
   if (req.body.discord_client_id) {
     config.discord_client_id = xss(req.body.discord_client_id)
   }
@@ -644,9 +647,11 @@ app.post('/updateProject', async (req: Request, res: Response) => {
     config.discord_role_id = xss(req.body.discord_role_id)
   }
   if (req.body.discord_bot_token && req.body.discord_bot_token != defaultRedactedString) {
+    console.log("saving new bot token string", xss(req.body.discord_bot_token))
     config.discord_bot_token = xss(req.body.discord_bot_token)
   }
-  if (req.body.discord_webhook) {
+  if (req.body.discord_webhook && req.body.discord_webhook != defaultRedactedString) {
+    console.log("saving new webhook string", xss(req.body.discord_webhook))
     config.discord_webhook = xss(req.body.discord_webhook)
   }
   if (req.body.update_authority) {
