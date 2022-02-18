@@ -186,6 +186,11 @@ function getSalesTrackerLockPath() {
   return "sales-tracker-running"
 }
 
+// trims whitespace and strips any XSS threats
+function getFieldValue(v: string) {
+  return xss(v.trim())
+}
+
 // validates signature of a given message
 function isSignatureValid(publicKeyString: string, signature: any, message: any) {
   const encodedMessage = new TextEncoder().encode(message)
@@ -366,11 +371,10 @@ const reloadHolders = async (project: any) => {
         return 500
       }
       const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
-      if (!doer) {
-        console.log("error retrieving user information")
-        return 500
+      if (doer) {
+        console.log(`removing role ${config.discord_role_id} from ${holder.discordName} on server ${config.discord_server_id}`)
+        await doer.roles.remove(role)
       }
-      await doer.roles.remove(role)
     }
   }
 
@@ -524,7 +528,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
   }
 
   // ensure we have a proper project name
-  var projectNameCamel = toCamelCase(xss(req.body.project))
+  var projectNameCamel = toCamelCase(getFieldValue(req.body.project))
 
   // validate project name does not already exist
   const config = await getConfig(projectNameCamel)
@@ -555,17 +559,17 @@ app.post('/createProject', async (req: Request, res: Response) => {
   var newProjectConfig = {
     owner_public_key: publicKeyString,
     is_holder: isHolder,
-    project_friendly_name: xss(req.body.project),
-    message: `Verify ${xss(req.body.project)} Discord roles`,
-    discord_client_id: validateRequired("discord_client_id", xss(req.body.discord_client_id)),
-    discord_server_id: validateRequired("discord_server_id", xss(req.body.discord_server_id)),
-    discord_role_id: validateRequired("discord_role_id", xss(req.body.discord_role_id)),
+    project_friendly_name: getFieldValue(req.body.project),
+    message: `Verify ${getFieldValue(req.body.project)} Discord roles`,
+    discord_client_id: validateRequired("discord_client_id", getFieldValue(req.body.discord_client_id)),
+    discord_server_id: validateRequired("discord_server_id", getFieldValue(req.body.discord_server_id)),
+    discord_role_id: validateRequired("discord_role_id", getFieldValue(req.body.discord_role_id)),
     discord_redirect_url: `${process.env.BASE_URL}/${projectNameCamel}`,
-    discord_bot_token: validateRequired("discord_bot_token", xss(req.body.discord_bot_token)),
-    discord_webhook: xss(req.body.discord_webhook),
-    update_authority: validateRequired("update_authority", xss(req.body.update_authority)),
-    royalty_wallet_id: xss(req.body.royalty_wallet_id),
-    spl_token: xss(req.body.spl_token),
+    discord_bot_token: validateRequired("discord_bot_token", getFieldValue(req.body.discord_bot_token)),
+    discord_webhook: getFieldValue(req.body.discord_webhook),
+    update_authority: validateRequired("update_authority", getFieldValue(req.body.update_authority)),
+    royalty_wallet_id: getFieldValue(req.body.royalty_wallet_id),
+    spl_token: getFieldValue(req.body.spl_token),
     verifications: 0
   }
   if (validationFailures.length > 0) {
@@ -638,33 +642,33 @@ app.post('/updateProject', async (req: Request, res: Response) => {
 
   // update values that have been modified
   if (req.body.discord_client_id) {
-    config.discord_client_id = xss(req.body.discord_client_id)
+    config.discord_client_id = getFieldValue(req.body.discord_client_id)
   }
   if (req.body.discord_server_id) {
-    config.discord_server_id = xss(req.body.discord_server_id)
+    config.discord_server_id = getFieldValue(req.body.discord_server_id)
   }
   if (req.body.discord_role_id) {
-    config.discord_role_id = xss(req.body.discord_role_id)
+    config.discord_role_id = getFieldValue(req.body.discord_role_id)
   }
   if (req.body.discord_bot_token && req.body.discord_bot_token != defaultRedactedString) {
-    console.log("saving new bot token string", xss(req.body.discord_bot_token))
-    config.discord_bot_token = xss(req.body.discord_bot_token)
+    console.log("saving new bot token string", getFieldValue(req.body.discord_bot_token))
+    config.discord_bot_token = getFieldValue(req.body.discord_bot_token)
   }
   if (req.body.discord_webhook && req.body.discord_webhook != defaultRedactedString) {
-    console.log("saving new webhook string", xss(req.body.discord_webhook))
-    config.discord_webhook = xss(req.body.discord_webhook)
+    console.log("saving new webhook string", getFieldValue(req.body.discord_webhook))
+    config.discord_webhook = getFieldValue(req.body.discord_webhook)
   }
   if (req.body.update_authority) {
-    config.update_authority = xss(req.body.update_authority)
+    config.update_authority = getFieldValue(req.body.update_authority)
   }
   if (req.body.project_friendly_name) {
-    config.project_friendly_name = xss(req.body.project_friendly_name)
+    config.project_friendly_name = getFieldValue(req.body.project_friendly_name)
   }
   if (req.body.royalty_wallet_id) {
-    config.royalty_wallet_id = xss(req.body.royalty_wallet_id)
+    config.royalty_wallet_id = getFieldValue(req.body.royalty_wallet_id)
   }
   if (req.body.spl_token) {
-    config.spl_token = xss(req.body.spl_token)
+    config.spl_token = getFieldValue(req.body.spl_token)
   }
 
   // write updated config
@@ -750,8 +754,8 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   }
   const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
   if (!doer) {
-    console.log("error retrieving user information")
-    return res.sendStatus(500)
+    console.log(`error finding user ${discordName} on server ${config.discord_server_id}`)
+    return res.sendStatus(404)
   }
   await doer.roles.add(role)
   console.log("successfully added user role")

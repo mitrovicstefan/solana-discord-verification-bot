@@ -43,6 +43,9 @@
         <br>
         Please ensure Phantom is available on your device and try again.
       </div>
+      <div class="block text-gray-700 text-sm" v-if="step === 11">
+        We're having trouble finding you on this Discord server. Make sure you've joined the server and verify your role again.
+      </div>
       <div class="block text-gray-700 text-sm mt-5" v-if="step > 2">
         <h2 class="block text-gray-700 text-lg font-bold mb-2">What is NFT 4 Cause?</h2>
         <div class="block text-gray-700 text-sm mb-2">
@@ -147,6 +150,8 @@ export default Vue.extend({
           this.step = 9
         } else if (e.toString().includes("status code 401")) {
           this.step = 6
+        } if (e.toString().includes("status code 404")) {
+          this.step = 11
         } else {
           console.log("API ERROR", e)
           this.step = 7
