@@ -187,6 +187,10 @@ function getSalesTrackerLockPath() {
   return "sales-tracker-running"
 }
 
+function getSalesTrackerSuccessPath() {
+  return "sales-tracker-success"
+}
+
 // trims whitespace and strips any XSS threats
 function getFieldValue(v: string) {
   return xss(v.trim())
@@ -610,9 +614,12 @@ app.get('/getProjects', async (req: Request, res: Response) => {
     var projectData: any[] = []
     var aggregateData: any = {
       projects: discordClients.size,
-      lastSalesQuery: 0,
       sales: 0,
-      verifications: 0
+      verifications: 0,
+      tracker: {
+        inProgress: 0,
+        lastSuccess: 0,
+      }
     }
     for (const project of discordClients.keys()) {
       var config = await getConfig(project)
@@ -636,8 +643,15 @@ app.get('/getProjects', async (req: Request, res: Response) => {
     // retrieve the elapsed time since last sales query
     var lockFileContents = await read(getSalesTrackerLockPath())
     if (lockFileContents && lockFileContents != "") {
-      var elapsedSinceLastRun = (Date.now() - new Date(parseInt(lockFileContents)).getTime()) / 1000
-      aggregateData.lastSalesQuery = elapsedSinceLastRun
+      var elapsedCurrentRun = (Date.now() - new Date(parseInt(lockFileContents)).getTime()) / 1000
+      aggregateData.tracker.inProgress = elapsedCurrentRun
+    }
+
+    // retrieve the elapsed time since last sales query
+    var successFileContents = await read(getSalesTrackerSuccessPath())
+    if (successFileContents && successFileContents != "") {
+      var elapsedSinceLastRun = (Date.now() - new Date(parseInt(successFileContents)).getTime()) / 1000
+      aggregateData.tracker.lastSuccess = elapsedSinceLastRun
     }
 
     // return the data
