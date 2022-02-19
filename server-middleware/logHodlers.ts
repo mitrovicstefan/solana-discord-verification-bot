@@ -365,6 +365,7 @@ const getRequiredRoles = async (config: any) => {
 const getHodlerRoles = async (walletAddress: string, config: any) => {
 
   // retrieve the required roles for this project
+  var startTime = Date.now()
   var projectRoles = await getRequiredRoles(config)
   var userRoleMap = new Map<any, boolean>()
 
@@ -428,7 +429,8 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
       userRoles.push(roleID)
     }
   }
-  console.log(`wallet ${walletAddress} has roles ${JSON.stringify(userRoles)}`)
+  var elapsedTime = Date.now() - startTime
+  console.log(`wallet ${walletAddress} has roles ${JSON.stringify(userRoles)} (${elapsedTime}ms)`)
   return userRoles
 }
 
