@@ -146,11 +146,12 @@ export default Vue.extend({
           this.step = 7 
         }
       } catch (e) {
+        console.log(e.toString())
         if (e.toString().includes("status code 403")) {
           this.step = 9
         } else if (e.toString().includes("status code 401")) {
           this.step = 6
-        } if (e.toString().includes("status code 404")) {
+        } else if (e.toString().includes("status code 404")) {
           this.step = 11
         } else {
           console.log("API ERROR", e)
