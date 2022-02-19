@@ -3,6 +3,7 @@ const axios = require('axios')
 const app = require('express')()
 import { Request, Response } from 'express'
 import { initializeStorage, list, read, write } from './storage/persist'
+import { Convert } from "./types/wallet"
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const fs = require('fs')
 const nacl = require('tweetnacl')
@@ -282,42 +283,193 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
   }
 };
 
-// method to determine if wallet address is verified to hold resources
-const isHolderVerified = async (walletAddress: string, config: any) => {
-  let tokenList
-  let splTokenBalance = 0
+const getTokenAttributes = async (uri: any) => {
+  try {
+    const response = await axios({ url: uri, method: "get" })
+    return response.data.attributes
+  } catch (e) {
+    console.log("error getting token attributes", e)
+  }
+  return []
+}
 
-  // Parses all tokens from that public key
+// determines if the holder is verified
+const isHolderVerified = async (walletAddress: string, config: any) => {
+
+  // inspect contents of the wallet
+  var wallet = await getHodlerWallet(walletAddress, config)
+
+  // test code to get list of validated project roles
+  await getHodlerRoles(walletAddress, config)
+
+  // print result and return
+  var isVerified = (wallet.nfts && wallet.nfts.length > 0) || (wallet.splBalance && wallet.splBalance > 0)
+  console.log(`hodler ${walletAddress} verification status: ${isVerified}`)
+  return isVerified
+}
+
+// determines the list of roles required by a project
+const getRequiredRoles = async (config: any) => {
+
+  // add the two default roles
+  var projectRoles = []
+  projectRoles.push({
+    roleID: config.discord_role_id,
+    splBalance: 0,
+    nftBalance: 1,
+    nftAttributes: []
+  })
+  projectRoles.push({
+    roleID: config.discord_role_id,
+    splBalance: 1,
+    nftBalance: 0,
+    nftAttributes: []
+  })
+
+  // TEST ROLES TO REMOVE
+  projectRoles.push({
+    roleID: "nft-count-only-role",
+    splBalance: 0,
+    nftBalance: 1,
+    nftAttributes: []
+  })
+  projectRoles.push({
+    roleID: "spl-only-role",
+    splBalance: 1,
+    nftBalance: 0,
+    nftAttributes: []
+  })
+  projectRoles.push({
+    roleID: "matching-trait-based-role",
+    splBalance: 0,
+    nftBalance: 1,
+    nftAttributes: [{
+      key: "Profession",
+      value: "Grocery Clerk"
+    }]
+  })
+  projectRoles.push({
+    roleID: "missing-trait=based-role",
+    splBalance: 0,
+    nftBalance: 1,
+    nftAttributes: [{
+      key: "Profession",
+      value: "not exist"
+    }]
+  })
+
+  return projectRoles
+}
+
+// determines if the holder is verified
+const getHodlerRoles = async (walletAddress: string, config: any) => {
+
+  // retrieve the required roles for this project
+  var projectRoles = await getRequiredRoles(config)
+  var userRoleMap = new Map<any, boolean>()
+
+  // determine if the wallet is valid for each role
+  var wallet = await getHodlerWallet(walletAddress, config)
+  for (var i = 0; i < projectRoles.length; i++) {
+
+    // asssume not verified until determined otherwise
+    var projectRole = projectRoles[i]
+    var roleVerified = false
+
+    // stop if SPL token requirement is not met
+    if (projectRole.splBalance > 0) {
+      var splBalance = wallet.splBalance || 0
+      if (splBalance >= projectRole.splBalance) {
+        console.log(`wallet ${walletAddress} validated for role ${projectRole.roleID} via SPL balance`)
+        roleVerified = true
+      }
+    }
+
+    // if present, determine the number of NFTs match the required attributes
+    if (projectRole.nftBalance > 0 && wallet.nfts) {
+      var walletNFTCount = wallet.nfts.length
+      var matchingNFTCount = walletNFTCount
+      if (projectRole.nftAttributes.length > 0) {
+        matchingNFTCount = 0
+        projectRole.nftAttributes.forEach(requiredAttribute => {
+          for (var j = 0; j < walletNFTCount; j++) {
+            var walletNFT = (wallet.nfts) ? wallet.nfts[j] : undefined
+            console.log(`checking wallet ${walletAddress} NFT ${JSON.stringify(walletNFT)} for required attribute ${JSON.stringify(requiredAttribute)}`)
+            if (walletNFT?.attributes) {
+              for (var k = 0; k < walletNFT.attributes.length; k++) {
+                var walletNFTAttribute = walletNFT.attributes[k]
+                if (requiredAttribute.key == walletNFTAttribute.trait_type) {
+                  if (requiredAttribute.value == walletNFTAttribute.value) {
+                    console.log(`wallet ${walletAddress} matches requirement ${JSON.stringify(requiredAttribute)}`)
+                    matchingNFTCount++
+                  }
+                }
+              }
+            }
+          }
+        })
+      }
+
+      // stop if the matching NFT requirement is not met
+      if (matchingNFTCount >= projectRole.nftBalance) {
+        console.log(`wallet ${walletAddress} validated for role ${projectRole.roleID} via matching NFT count`)
+        roleVerified = true
+      }
+    }
+
+    // set the role verification result
+    userRoleMap.set(projectRole.roleID, roleVerified)
+  }
+
+  // create a list of only validated role IDs
+  var userRoles = []
+  for (const roleID of userRoleMap.keys()) {
+    if (userRoleMap.get(roleID)) {
+      userRoles.push(roleID)
+    }
+  }
+  console.log(`wallet ${walletAddress} has roles ${JSON.stringify(userRoles)}`)
+  return userRoles
+}
+
+// inspects a holder's wallet for NFTs and SPL tokens matching the criteria
+// specified in the config map
+const getHodlerWallet = async (walletAddress: string, config: any) => {
+
+  // Parses all tokens from the requested wallet address public key
+  let tokenList
   try {
     tokenList = await getParsedNftAccountsByOwner({ publicAddress: walletAddress })
   } catch (e) {
     console.log("Error parsing NFTs", e)
   }
 
-  // Basic ass way to find matched NFTs compared to the mint list ( PRs welcome <3 )
-  let matched = []
+  // initialize an empty wallet to be returned
+  let nfts: any[] = [];
+  let wallet = {
+    nfts: nfts,
+    splBalance: 0
+  }
   for (let item of tokenList) {
     if (item.updateAuthority === config.update_authority) {
-      console.log(`hodler ${walletAddress} item ${item.mint} matches expected update authority`)
-      matched.push(item)
-      break
+      console.log(`wallet ${walletAddress} item ${item.mint} matches expected update authority`)
+      item.attributes = await getTokenAttributes(item.data.uri)
+      wallet.nfts.push(item)
     }
   }
 
-  // Optionally check for spl-tokens matching mint IDs if NFTs were not found
-  if (matched.length == 0 && config.spl_token && config.spl_token != "") {
+  // if specified in the config, check for SPL token balance
+  if (config.spl_token && config.spl_token != "") {
     try {
-      splTokenBalance = await getTokenBalance(walletAddress, config.spl_token)
-      console.log(`hodler ${walletAddress} spl token balance: ${splTokenBalance}`)
+      wallet.splBalance = await getTokenBalance(walletAddress, config.spl_token)
+      console.log(`wallet ${walletAddress} spl token balance: ${wallet.splBalance}`)
     } catch (e) {
       console.log("Error getting spl token balance", e)
     }
   }
 
-  // print result and return
-  var isVerified = matched.length > 0 || splTokenBalance > 0
-  console.log(`hodler ${walletAddress} verification status: ${isVerified}`)
-  return isVerified
+  // convert to wallet struct and return
+  return Convert.toWallet(JSON.stringify(wallet))
 }
 
 // validates the current holders are still in good standing
