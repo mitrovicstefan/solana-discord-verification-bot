@@ -297,69 +297,25 @@ const getTokenAttributes = async (uri: any) => {
   return []
 }
 
-// determines if the holder is verified
-const isHolderVerified = async (walletAddress: string, config: any) => {
-
-  // inspect contents of the wallet
-  var wallet = await getHodlerWallet(walletAddress, config)
-
-  // test code to get list of validated project roles
-  await getHodlerRoles(walletAddress, config)
-
-  // print result and return
-  var isVerified = (wallet.nfts && wallet.nfts.length > 0) || (wallet.splBalance && wallet.splBalance > 0)
-  console.log(`hodler ${walletAddress} verification status: ${isVerified}`)
-  return isVerified
-}
-
 // determines the list of roles required by a project
 const getRequiredRoles = async (config: any) => {
 
-  // add the two default roles
+  // default NFT balance role
+  var nftAttributes: any[] = []
   var projectRoles = []
   projectRoles.push({
     roleID: config.discord_role_id,
     splBalance: 0,
     nftBalance: 1,
-    nftAttributes: []
+    nftAttributes: nftAttributes
   })
+
+  // default SPL token balance role
   projectRoles.push({
     roleID: config.discord_role_id,
     splBalance: 1,
     nftBalance: 0,
-    nftAttributes: []
-  })
-
-  // TEST ROLES TO REMOVE
-  projectRoles.push({
-    roleID: "nft-count-only-role",
-    splBalance: 0,
-    nftBalance: 1,
-    nftAttributes: []
-  })
-  projectRoles.push({
-    roleID: "spl-only-role",
-    splBalance: 1,
-    nftBalance: 0,
-    nftAttributes: []
-  })
-  projectRoles.push({
-    roleID: "matching-trait-based-role",
-    splBalance: 0,
-    nftBalance: 1,
-    nftAttributes: [{
-      key: "Profession",
-      value: "Grocery Clerk"
-    }]
-  })
-  projectRoles.push({
-    roleID: "missing-trait=based-role",
-    splBalance: 0,
-    nftBalance: 1,
-    nftAttributes: [{
-      key: "Profession",
-      value: "not exist"
-    }]
+    nftAttributes: nftAttributes
   })
 
   return projectRoles
@@ -423,7 +379,9 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
     }
 
     // set the role verification result
-    userRoleMap.set(projectRole.roleID, roleVerified)
+    if (!userRoleMap.get(projectRole.roleID)) {
+      userRoleMap.set(projectRole.roleID, roleVerified)
+    }
   }
 
   // create a list of only validated role IDs
@@ -504,35 +462,97 @@ const reloadHolders = async (project: any) => {
   }
 
   // iterate the hodler list
+  var updatedHodlerList: any[] = []
   var hodlerList = await getHodlerList(project)
   for (let n in hodlerList) {
 
-    // remove access if no matches
+    // determine currently held roles
     const holder = hodlerList[n]
-    if (!await isHolderVerified(holder.publicKey, config)) {
+    var verifiedRoles = await getHodlerRoles(holder.publicKey, config)
+
+    // determine roles to add
+    var rolesToAdd: any[] = []
+    verifiedRoles.forEach(verifiedRole => {
+      var foundRole = false
+      if (holder.roles) {
+        holder.roles.forEach((holderRole: any) => {
+          if (holderRole == verifiedRole) {
+            foundRole = true
+          }
+        })
+      }
+      if (!foundRole) {
+        rolesToAdd.push(verifiedRole)
+      }
+    })
+
+    // determine roles to remove
+    var rolesToRemove: any[] = []
+    if (holder.roles) {
+      holder.roles.forEach((holderRole: any) => {
+        var foundRole = false
+        verifiedRoles.forEach(verifiedRole => {
+          if (holderRole == verifiedRole) {
+            foundRole = true
+          }
+        })
+        if (!foundRole) {
+          rolesToRemove.push(holderRole)
+        }
+      })
+    }
+
+    // update the user's roles
+    if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
+
+      // audit log for what changes are going to be made
+      console.log(`wallet ${holder.publicKey} updating roles, add=${JSON.stringify(rolesToAdd)}, remove=${JSON.stringify(rolesToRemove)}`)
 
       // parse the discord address to remove
-      console.log(`address is no longer holding expected tokens: ${holder.publicKey}`)
       hodlerList.splice(n, 1)
       const username = holder.discordName.split('#')[0]
       const discriminator = holder.discordName.split('#')[1]
 
-      // remove role from discord user
+      // retrieve server and user records from discord
       const myGuild = await client.guilds.cache.get(config.discord_server_id)
       if (!myGuild) {
         console.log("error retrieving server information")
         return 500
       }
-      const role = await myGuild.roles.cache.find((r: any) => r.id === config.discord_role_id)
-      if (!role) {
-        console.log("error retrieving role information")
+      const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
+      if (!doer) {
+        console.log("error retrieving user information")
         return 500
       }
-      const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
-      if (doer) {
-        console.log(`removing role ${config.discord_role_id} from ${holder.discordName} on server ${config.discord_server_id}`)
+
+      // remove the roles that are no longer valid
+      for (var i = 0; i < rolesToRemove.length; i++) {
+        const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToRemove[i])
+        if (!role) {
+          console.log("error retrieving role information")
+          continue
+        }
+        console.log(`removing role ${rolesToRemove[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
         await doer.roles.remove(role)
       }
+
+      // add the roles that are missing
+      for (var i = 0; i < rolesToAdd.length; i++) {
+        const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToAdd[i])
+        if (!role) {
+          console.log("error retrieving role information")
+          continue
+        }
+        console.log(`adding role ${rolesToAdd[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
+        await doer.roles.add(role)
+      }
+    }
+
+    // update the holder list to include only the verified roles. If there are not any
+    // verified roles then do not include the holder in the updated list at all.
+    if (verifiedRoles.length > 0) {
+      holder.roles = verifiedRoles
+      updatedHodlerList.push(holder)
     }
   }
 
@@ -541,7 +561,7 @@ const reloadHolders = async (project: any) => {
   await write(getConfigFilePath(project), JSON.stringify(config))
 
   // update the hodler file and return successfully
-  await write(getHodlerFilePath(project), JSON.stringify(hodlerList))
+  await write(getHodlerFilePath(project), JSON.stringify(updatedHodlerList))
   return 200
 }
 
@@ -706,10 +726,13 @@ app.post('/createProject', async (req: Request, res: Response) => {
   }
 
   // Is the address a system level token holder?
-  var isHolder = await isHolderVerified(publicKeyString, {
+  var holderRoles = await getHodlerRoles(publicKeyString, {
+    discord_role_id: "project-verified",
     update_authority: process.env.UPDATE_AUTHORITY,
     spl_token: process.env.SPL_TOKEN
   })
+  var isHolder = holderRoles.length > 0
+
 
   // validation of required fields
   var validationFailures: any[] = []
@@ -802,10 +825,12 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   // make this check if the user is not currently a holder. We will allow previous
   // holders to remain holders even if the NFT is transferred out of the wallet.
   if (!config.is_holder) {
-    config.is_holder = await isHolderVerified(publicKeyString, {
+    var holderRoles = await getHodlerRoles(publicKeyString, {
+      discord_role_id: "project-verified",
       update_authority: process.env.UPDATE_AUTHORITY,
       spl_token: process.env.SPL_TOKEN
     })
+    config.is_holder = holderRoles.length > 0
   }
 
   // update values that have been modified
@@ -879,7 +904,8 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // If matched NFTs are not empty and it's not already in the JSON push it
   var updatedConfig = false
-  if (await isHolderVerified(publicKeyString, config)) {
+  var verifiedRoles = await getHodlerRoles(publicKeyString, config)
+  if (verifiedRoles.length > 0) {
     let hasHodler = false
     var hodlerList = await getHodlerList(req.body.projectName)
     for (let n of hodlerList) {
@@ -889,7 +915,8 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
       console.log("adding to hodler list: " + publicKeyString)
       hodlerList.push({
         discordName: discordName,
-        publicKey: publicKeyString
+        publicKey: publicKeyString,
+        roles: verifiedRoles
       })
 
       // increment verification count
@@ -910,14 +937,10 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   }
 
   // Update role
+  var rolesAdded: any[] = []
   const myGuild = await client.guilds.cache.get(config.discord_server_id)
   if (!myGuild) {
     console.log("error retrieving server information")
-    return res.sendStatus(500)
-  }
-  const role = await myGuild.roles.cache.find((r: any) => r.id === config.discord_role_id)
-  if (!role) {
-    console.log("error retrieving role information")
     return res.sendStatus(500)
   }
   const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
@@ -925,8 +948,16 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
     console.log(`error finding user ${discordName} on server ${config.discord_server_id}`)
     return res.sendStatus(404)
   }
-  await doer.roles.add(role)
-  console.log("successfully added user role")
+  for (var i = 0; i < verifiedRoles.length; i++) {
+    const role = await myGuild.roles.cache.find((r: any) => r.id === verifiedRoles[i])
+    if (!role) {
+      console.log(`wallet ${publicKeyString} error retrieving role information ${verifiedRoles[i]}`)
+      continue
+    }
+    await doer.roles.add(role)
+    console.log(`wallet ${publicKeyString} successfully added user ${discordName} role ${verifiedRoles[i]}`)
+    rolesAdded.push(verifiedRoles[i])
+  }
 
   // write the config if updated
   if (updatedConfig) {
@@ -935,7 +966,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
 
   // write result and return successfully
   await write(getHodlerFilePath(req.body.projectName), JSON.stringify(hodlerList))
-  res.sendStatus(200)
+  res.json(rolesAdded)
 })
 
 // Endpoint to get all hodlers - protect it if you'd like
