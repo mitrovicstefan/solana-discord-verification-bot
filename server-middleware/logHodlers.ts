@@ -433,7 +433,12 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
   for (let item of tokenList) {
     if (item.updateAuthority === config.update_authority) {
       console.log(`wallet ${walletAddress} item ${item.mint} matches expected update authority`)
-      item.attributes = await getTokenAttributes(item.data.uri)
+      if (config.roles && config.roles.length > 0 && config.is_holder) {
+        console.log(`retrieving token metadata for ${item.mint}`)
+        item.attributes = await getTokenAttributes(item.data.uri)
+      } else {
+        console.log(`skipping token metadata for ${item.mint}`)
+      }
       wallet.nfts.push(item)
     }
   }
