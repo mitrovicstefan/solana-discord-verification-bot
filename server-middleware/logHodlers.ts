@@ -613,6 +613,7 @@ app.get('/getProject', async (req: Request, res: Response) => {
       discord_client_id: config.discord_client_id,
       discord_server_id: config.discord_server_id,
       discord_role_id: config.discord_role_id,
+      discord_roles: config.roles,
       discord_redirect_url: config.discord_redirect_url,
       update_authority: config.update_authority,
       spl_token: config.spl_token,
@@ -763,6 +764,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
   }
 
   // create and validate the new project configuration
+  var roles: any[] = []
   var newProjectConfig = {
     owner_public_key: publicKeyString,
     is_holder: isHolder,
@@ -777,7 +779,17 @@ app.post('/createProject', async (req: Request, res: Response) => {
     update_authority: validateRequired("update_authority", getFieldValue(req.body.update_authority)),
     royalty_wallet_id: getFieldValue(req.body.royalty_wallet_id),
     spl_token: getFieldValue(req.body.spl_token),
+    roles: roles,
     verifications: 0
+  }
+  if (req.body.discord_roles) {
+    var roles: any[] = []
+    req.body.discord_roles.forEach((role: any) => {
+      if (role.key != "" && role.value != "" && role.discord_role_id != "") {
+        roles.push(role)
+      }
+    })
+    newProjectConfig.roles = roles
   }
   if (validationFailures.length > 0) {
     console.log("invalid request:", JSON.stringify(validationFailures))
@@ -878,6 +890,15 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   }
   if (req.body.spl_token) {
     config.spl_token = getFieldValue(req.body.spl_token)
+  }
+  if (req.body.discord_roles) {
+    var roles: any[] = []
+    req.body.discord_roles.forEach((role: any) => {
+      if (role.key != "" && role.value != "" && role.discord_role_id != "") {
+        roles.push(role)
+      }
+    })
+    config.roles = roles
   }
 
   // write updated config
