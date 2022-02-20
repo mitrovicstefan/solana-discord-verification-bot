@@ -119,10 +119,10 @@
           🚫 Quota remaining: {{discord_remaining_verifications}} (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
         <div v-if="this.is_holder" class="block text-gray-700 text-sm">
-          ✅ Trait based role assignment
+          ✅ Trait based role assignments
         </div>
         <div v-if="!this.is_holder" class="block text-gray-700 text-sm">
-          🚫 Trait based role assignment (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+          🚫 Trait based role assignments (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Sales Tracking</h2>
         <div class="block text-sm mb-2"> 
