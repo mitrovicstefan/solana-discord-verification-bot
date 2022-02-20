@@ -318,6 +318,22 @@ const getRequiredRoles = async (config: any) => {
     nftAttributes: nftAttributes
   })
 
+  // holder only access to trait based role assignment
+  if (config.is_holder && config.roles) {
+    config.roles.forEach((role: any) => {
+      projectRoles.push({
+        roleID: role.discord_role_id,
+        splBalance: 0,
+        nftBalance: role.required_balance,
+        nftAttributes: [{
+          key: role.key,
+          value: role.value
+        }]
+      })
+    })
+  }
+
+  console.log(`required roles are ${JSON.stringify(projectRoles)}`)
   return projectRoles
 }
 
