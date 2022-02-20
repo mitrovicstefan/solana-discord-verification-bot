@@ -139,7 +139,7 @@ export default Vue.extend({
           // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
           publicKey: connection.publicKey.toString()
         })
-        console.log("Status:" + res2.status)
+        console.log(`validated roled status ${res2.status} with roles ${JSON.stringify(res2.data)}`)
         if (res2.status == 200) {
           this.step = 5 
         } else if (res2.status == 500) { 
