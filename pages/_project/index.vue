@@ -22,6 +22,9 @@
         <br>
         Review the message before signing and make sure that nothing else is requested except signature.
       </div>
+      <div class="block text-gray-700 text-sm mx-auto" v-if="step === 12">
+        <img class="mx-auto" src="/loading.gif">
+      </div>
       <div class="block text-gray-700 text-sm" v-if="step === 5">
         You're verified! You can close this window now and flex your new discord power.
       </div>
@@ -132,6 +135,7 @@ export default Vue.extend({
       // Sends signature to the backend
       let res2
       try {
+        this.step = 12
         res2 = await axios.post('/api/logHodlers', {
           projectName: projectName,
           discordName: this.discordUsername,
