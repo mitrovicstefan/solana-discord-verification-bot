@@ -32,6 +32,7 @@
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Project info</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project" v-if="!this.configResponse" placeholder="Project name">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project_friendly_name" v-if="this.configResponse" placeholder="Collection name">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project_twitter_name" placeholder="@ProjectTwitterHandle">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="update_authority" placeholder="Update authority ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="royalty_wallet_id" placeholder="Royalty wallet ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="spl_token" placeholder="White list token ID">
@@ -128,11 +129,23 @@
         <div class="block text-sm mb-2"> 
           ✅ <a class=hyperlink :href="this.discord_redirect_url+'/sales'">{{discord_redirect_url}}/sales</a>
         </div>
-        <div v-if="this.is_holder && this.discord_webhook" class="block text-gray-700 text-sm">
+        <div v-if="this.is_holder && this.discord_webhook" class="block text-gray-700 text-sm mb-2">
           ✅ Discord notifications
         </div>
-        <div v-if="!this.is_holder || !this.discord_webhook" class="block text-gray-700 text-sm">
+        <div v-if="this.is_holder && !this.discord_webhook" class="block text-gray-700 text-sm mb-2">
+          ➕ Discord notifications (add webhook URL above)
+        </div>
+        <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
           🚫 Discord notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+        </div>
+        <div v-if="this.is_holder && this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
+          ✅ Custom Twitter notifications <a class="hyperlink" :href="'https://twitter.com/'+this.connected_twitter_name">@{{this.connected_twitter_name}}</a> (<a class="hyperlink" href="/api/twitter">update</a>)
+        </div>
+        <div v-if="this.is_holder && !this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
+          ➕ Custom Twitter notifications (<a class="hyperlink" href="/api/twitter">connect</a>)
+        </div>
+        <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
+          🚫 Custom Twitter notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
     </div>
   </div>
@@ -153,6 +166,7 @@ export default Vue.extend({
       isUpdate: false,
       project: '',
       project_friendly_name: '',
+      project_twitter_name: '',
       update_authority: '',
       spl_token: '',
       royalty_wallet_id: '',
@@ -165,6 +179,7 @@ export default Vue.extend({
       discord_redirect_url: '',
       discord_remaining_verifications: '',
       is_holder: false,
+      connected_twitter_name: '',
       discord_roles: [{
         discord_role_id: '',
         required_balance: 1,
@@ -202,6 +217,7 @@ export default Vue.extend({
         res = await axios.get('/api/getProject?publicKey='+this.publicKey)
         this.configResponse = res.data
         this.discord_redirect_url = res.data.discord_redirect_url
+        this.connected_twitter_name = res.data.connected_twitter_name
         this.is_holder = res.data.is_holder
         if (res.data.is_holder) {
           this.discord_remaining_verifications = "unlimited"
@@ -219,6 +235,7 @@ export default Vue.extend({
         this.update_authority = res.data.update_authority
         this.spl_token = res.data.spl_token
         this.project_friendly_name = res.data.project_friendly_name
+        this.project_twitter_name = res.data.project_twitter_name
         this.royalty_wallet_id = res.data.royalty_wallet_id
         this.discord_server_id = res.data.discord_server_id
         this.discord_role_id = res.data.discord_role_id
@@ -243,6 +260,9 @@ export default Vue.extend({
     remove (index:number) {
       this.discord_roles.splice(index, 1)
     },
+    connectTwitter() {
+      alert("hello " + this.publicKey)
+    },
     async submitForm() {
         let res 
         try{
@@ -258,6 +278,8 @@ export default Vue.extend({
             spl_token: this.spl_token,
             // @ts-ignore
             project_friendly_name: this.project_friendly_name,
+            // @ts-ignore
+            project_twitter_name: this.project_twitter_name,
             // @ts-ignore
             royalty_wallet_id: this.royalty_wallet_id,
             // @ts-ignore
@@ -275,6 +297,7 @@ export default Vue.extend({
           })
           this.configResponse = res.data
           this.discord_redirect_url = res.data.discord_redirect_url
+          this.connected_twitter_name = res.data.connected_twitter_name
           this.is_holder = res.data.is_holder
           if (res.data.is_holder) {
             this.discord_remaining_verifications = "unlimited"

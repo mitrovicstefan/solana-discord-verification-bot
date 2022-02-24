@@ -614,6 +614,7 @@ app.get('/getProject', async (req: Request, res: Response) => {
     var returnConfig = {
       project: projectName,
       project_friendly_name: config.project_friendly_name,
+      project_twitter_name: config.project_twitter_name,
       is_holder: config.is_holder,
       discord_client_id: config.discord_client_id,
       discord_server_id: config.discord_server_id,
@@ -626,7 +627,8 @@ app.get('/getProject', async (req: Request, res: Response) => {
       verifications: config.verifications,
       message: config.message,
       discord_webhook: defaultRedactedString,
-      discord_bot_token: defaultRedactedString
+      discord_bot_token: defaultRedactedString,
+      connected_twitter_name: config.connected_twitter_name
     }
 
     // return the configuration
@@ -774,6 +776,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
     owner_public_key: publicKeyString,
     is_holder: isHolder,
     project_friendly_name: getFieldValue(req.body.project),
+    project_twitter_name: getFieldValue(req.body.project_twitter_name),
     message: `Verify ${getFieldValue(req.body.project)} Discord roles`,
     discord_client_id: validateRequired("discord_client_id", getFieldValue(req.body.discord_client_id)),
     discord_server_id: validateRequired("discord_server_id", getFieldValue(req.body.discord_server_id)),
@@ -836,21 +839,23 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   }
 
   // validate user owns the project
+  var projectName = ""
   try {
     var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
-    if (userProject && userProject.projectName != req.body.project) {
-      console.log(`address ${req.body.publicKey} does not own ${req.body.project}`)
+    if (!userProject || userProject.projectName == "") {
+      console.log(`address ${req.body.publicKey} does not own a project`)
       return res.sendStatus(401)
     }
+    projectName = userProject.projectName
   } catch (e) {
     console.log("user does not own project", e)
     return res.sendStatus(401)
   }
 
   // validate project name does not already exist
-  const config = await getConfig(req.body.project)
+  const config = await getConfig(projectName)
   if (!config) {
-    console.log(`project does not exist: ${req.body.project}`)
+    console.log(`project does not exist: ${projectName}`)
     return res.sendStatus(404)
   }
 
@@ -890,11 +895,23 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   if (req.body.project_friendly_name) {
     config.project_friendly_name = getFieldValue(req.body.project_friendly_name)
   }
+  if (req.body.project_twitter_name) {
+    config.project_twitter_name = getFieldValue(req.body.project_twitter_name)
+  }
   if (req.body.royalty_wallet_id) {
     config.royalty_wallet_id = getFieldValue(req.body.royalty_wallet_id)
   }
   if (req.body.spl_token) {
     config.spl_token = getFieldValue(req.body.spl_token)
+  }
+  if (req.body.twitterAccessToken) {
+    config.twitterAccessToken = getFieldValue(req.body.twitterAccessToken)
+  }
+  if (req.body.twitterTokenSecret) {
+    config.twitterTokenSecret = getFieldValue(req.body.twitterTokenSecret)
+  }
+  if (req.body.twitterUsername) {
+    config.connected_twitter_name = getFieldValue(req.body.twitterUsername)
   }
   if (req.body.discord_roles) {
     var roles: any[] = []
@@ -907,13 +924,13 @@ app.post('/updateProject', async (req: Request, res: Response) => {
   }
 
   // write updated config
-  var isSuccessful = await write(getConfigFilePath(req.body.project), JSON.stringify(config))
+  var isSuccessful = await write(getConfigFilePath(projectName), JSON.stringify(config))
   if (!isSuccessful) {
     return res.sendStatus(500)
   }
 
   // save and return
-  console.log(`successfully updated project ${req.body.project} for owner ${publicKeyString}`)
+  console.log(`successfully updated project ${projectName} for owner ${publicKeyString}`)
   return res.json(config)
 })
 

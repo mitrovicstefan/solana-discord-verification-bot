@@ -21,7 +21,10 @@ export default {
   server: {
     port: process.env.PORT || 3000
   },
-  serverMiddleware: [{ path: '/api', handler: './server-middleware/logHodlers' }],
+  serverMiddleware: [
+    { path: '/api', handler: './server-middleware/logHodlers' },
+    { path: '/api/twitter', handler: './server-middleware/twitter' }
+  ],
   publicRuntimeConfig: {
     message: process.env.MESSAGE,
     project_name: process.env.PRODUCT_NAME,
