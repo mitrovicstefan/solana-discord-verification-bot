@@ -672,6 +672,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
         projectSales = JSON.parse(await read(getSalesFilePath(config.update_authority)))
       } catch (e2) {
         console.log("error parsing sales file", e2)
+        continue
       }
       var data = {
         project: project,
@@ -704,6 +705,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       projects: projectData
     })
   } catch (e) {
+    console.log("error getting projects", e)
     return res.sendStatus(404)
   }
 })
