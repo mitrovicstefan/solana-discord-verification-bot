@@ -129,24 +129,27 @@
         <div class="block text-sm mb-2"> 
           ✅ <a class=hyperlink :href="this.discord_redirect_url+'/sales'">{{discord_redirect_url}}/sales</a>
         </div>
+        <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
+          ✅ Default Twitter notification bot <a class="hyperlink" href="https://twitter.com/nft4causeBot">@nft4causeBot</a>
+        </div>
         <div v-if="this.is_holder && this.discord_webhook" class="block text-gray-700 text-sm mb-2">
-          ✅ Discord notifications
+          ✅ Discord notification bot
         </div>
         <div v-if="this.is_holder && !this.discord_webhook" class="block text-gray-700 text-sm mb-2">
-          ➕ Discord notifications (add webhook URL above)
+          ➕ Discord notification bot (add webhook URL above)
         </div>
         <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
-          🚫 Discord notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+          🚫 Discord notification bot (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
         <div v-if="this.$config.twitter_enabled">
           <div v-if="this.is_holder && this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
-            ✅ Custom Twitter notifications <a class="hyperlink" :href="'https://twitter.com/'+this.connected_twitter_name">@{{this.connected_twitter_name}}</a> (<a class="hyperlink" href="/api/twitter">update</a>)
+            ✅ Custom Twitter notification bot <a class="hyperlink" :href="'https://twitter.com/'+this.connected_twitter_name">@{{this.connected_twitter_name}}</a> (<a class="hyperlink" href="/api/twitter">update</a>)
           </div>
           <div v-if="this.is_holder && !this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
-            ➕ Custom Twitter notifications (<a class="hyperlink" href="/api/twitter">connect</a>)
+            ➕ Custom Twitter notification bot (<a class="hyperlink" href="/api/twitter">connect</a>)
           </div>
           <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
-            🚫 Custom Twitter notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+            🚫 Custom Twitter notification bot (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
           </div>
         </div>
     </div>
