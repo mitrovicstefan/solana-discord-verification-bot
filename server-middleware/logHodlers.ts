@@ -654,26 +654,37 @@ app.get('/getProjectSales', async (req: Request, res: Response) => {
 })
 
 app.get('/getProjects', async (req: Request, res: Response) => {
-  try {
-    var projectData: any[] = []
-    var aggregateData: any = {
-      projects: discordClients.size,
-      sales: 0,
-      verifications: 0,
-      tracker: {
-        inProgress: 0,
-        lastSuccess: 0,
-      }
+
+  var projectData: any[] = []
+  var aggregateData: any = {
+    projects: {
+      active: 0,
+      all: discordClients.size,
+      holder: 0
+    },
+    sales: 0,
+    verifications: 0,
+    tracker: {
+      inProgress: 0,
+      lastSuccess: 0,
     }
-    for (const project of discordClients.keys()) {
+  }
+  for (const project of discordClients.keys()) {
+    try {
       var config = await getConfig(project)
       var projectSales: any = {}
       try {
         projectSales = JSON.parse(await read(getSalesFilePath(config.update_authority)))
       } catch (e2) {
         console.log("error parsing sales file", e2)
+      }
+
+      // skip if not yet any verifications
+      if (config.verifications == 0) {
         continue
       }
+
+      // print the data and aggregate
       var data = {
         project: project,
         is_holder: config.is_holder,
@@ -681,33 +692,36 @@ app.get('/getProjects', async (req: Request, res: Response) => {
         sales: (projectSales.sales) ? projectSales.sales.length : 0
       }
       projectData.push(data)
+      if (config.is_holder) {
+        aggregateData.projects.holder++
+      }
+      aggregateData.projects.active++
       aggregateData.verifications += data.verifications
       aggregateData.sales += data.sales
+    } catch (e) {
+      console.log("error rendering project", e)
     }
-
-    // retrieve the elapsed time since last sales query
-    var lockFileContents = await read(getSalesTrackerLockPath())
-    if (lockFileContents && lockFileContents != "") {
-      var elapsedCurrentRun = (Date.now() - new Date(parseInt(lockFileContents)).getTime()) / 1000
-      aggregateData.tracker.inProgress = elapsedCurrentRun
-    }
-
-    // retrieve the elapsed time since last sales query
-    var successFileContents = await read(getSalesTrackerSuccessPath())
-    if (successFileContents && successFileContents != "") {
-      var elapsedSinceLastRun = (Date.now() - new Date(parseInt(successFileContents)).getTime()) / 1000
-      aggregateData.tracker.lastSuccess = elapsedSinceLastRun
-    }
-
-    // return the data
-    res.json({
-      metrics: aggregateData,
-      projects: projectData
-    })
-  } catch (e) {
-    console.log("error getting projects", e)
-    return res.sendStatus(404)
   }
+
+  // retrieve the elapsed time since last sales query
+  var lockFileContents = await read(getSalesTrackerLockPath())
+  if (lockFileContents && lockFileContents != "") {
+    var elapsedCurrentRun = (Date.now() - new Date(parseInt(lockFileContents)).getTime()) / 1000
+    aggregateData.tracker.inProgress = elapsedCurrentRun
+  }
+
+  // retrieve the elapsed time since last sales query
+  var successFileContents = await read(getSalesTrackerSuccessPath())
+  if (successFileContents && successFileContents != "") {
+    var elapsedSinceLastRun = (Date.now() - new Date(parseInt(successFileContents)).getTime()) / 1000
+    aggregateData.tracker.lastSuccess = elapsedSinceLastRun
+  }
+
+  // return the data
+  res.json({
+    metrics: aggregateData,
+    projects: projectData
+  })
 })
 
 // Endpoint to validate a hodler and add role 

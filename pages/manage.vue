@@ -138,14 +138,16 @@
         <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
           🚫 Discord notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
-        <div v-if="this.is_holder && this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
-          ✅ Custom Twitter notifications <a class="hyperlink" :href="'https://twitter.com/'+this.connected_twitter_name">@{{this.connected_twitter_name}}</a> (<a class="hyperlink" href="/api/twitter">update</a>)
-        </div>
-        <div v-if="this.is_holder && !this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
-          ➕ Custom Twitter notifications (<a class="hyperlink" href="/api/twitter">connect</a>)
-        </div>
-        <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
-          🚫 Custom Twitter notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+        <div v-if="this.$config.twitter_enabled">
+          <div v-if="this.is_holder && this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
+            ✅ Custom Twitter notifications <a class="hyperlink" :href="'https://twitter.com/'+this.connected_twitter_name">@{{this.connected_twitter_name}}</a> (<a class="hyperlink" href="/api/twitter">update</a>)
+          </div>
+          <div v-if="this.is_holder && !this.connected_twitter_name" class="block text-gray-700 text-sm mb-2">
+            ➕ Custom Twitter notifications (<a class="hyperlink" href="/api/twitter">connect</a>)
+          </div>
+          <div v-if="!this.is_holder" class="block text-gray-700 text-sm mb-2">
+            🚫 Custom Twitter notifications (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+          </div>
         </div>
     </div>
   </div>

@@ -30,6 +30,7 @@ export default {
     project_name: process.env.PRODUCT_NAME,
     upgrade_url: process.env.UPGRADE_URL,
     about_url: process.env.ABOUT_URL,
+    twitter_enabled: process.env.TWITTER_ENABLED,
     max_free_verifications: parseInt(process.env.MAX_FREE_VERIFICATIONS)
   }
   ,
