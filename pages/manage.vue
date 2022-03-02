@@ -1,5 +1,8 @@
 <template >
   <div>
+    <div class="block text-gray-700 text-sm mx-auto" v-if="step === 0">
+        <img class="mx-auto" src="/loading.gif">
+    </div>
     <div v-if="step === 1">
         <h2 class="block text-gray-700 text-2xl font-bold mb-2">Let's get started!</h2>
         <div class="block text-gray-700 text-sm mb-5">
@@ -63,6 +66,7 @@
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Sales tracking notifications</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="password" v-model="discord_webhook" placeholder="Discord webhook URL">
         </div>
+        <button class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button" @click="disconnectWallet">Cancel</button>
         <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Save</button>
       </form>
     </div>
@@ -107,6 +111,12 @@
         <div class="block text-gray-700 text-sm mb-2">
           Double check your configuration values, something doesn't look right.
         </div>
+    </div>
+    <div class="block text-gray-700 text-sm" v-if="step === 11">
+      We're having trouble connecting to your wallet. The currently supported wallet configuration is <a class="hyperlink" href="https://phantom.app/">Phantom</a> with browser extension on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
+      <br>
+      <br>
+      Please ensure Phantom is available on your device and try again.
     </div>
     <div v-if="this.configResponse">
         <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Discord Verification Service</h2>
@@ -164,7 +174,7 @@ export default Vue.extend({
   data() {
     return {
       discordUsername: '',
-      step: 1,
+      step: 0,
       discordAvatar: '',
       signature: '',
       publicKey: '',
@@ -194,27 +204,70 @@ export default Vue.extend({
     }
   },
   async mounted() {
+
+    // determine if user is already logged in
+    try {
+      let res = await axios.get('/api/getConnectedWallet')
+      if (res.data) {
+        if (res.data.publicKey && res.data.signature) {
+          console.log(`wallet is connected ${res.data.publicKey}`)
+          this.publicKey = res.data.publicKey
+          this.signature = res.data.signature
+          this.connectWallet()
+        }
+      }
+    } catch (e) {
+      console.log("user is not logged in", e)
+      this.step = 1
+    }
   },
   methods: {
-    async connectWallet() {
-     
-      // Connects to phantom 
-      let connection
+    async disconnectWallet() {
       try {
-        connection = await window.solana.connect() 
+        let res = await axios.get('/api/disconnectWallet')
+        this.publicKey = ''
+        this.signature = ''
+        this.configResponse = null
       } catch (e) {
-        console.log(e) 
+        console.log("signature could not be validated", e) 
       }
+      this.step = 1
+    },
+    async connectWallet() {
+      
+      if (!this.signature || !this.publicKey) {
+        // Connects to phantom 
+        let connection
+        try {
 
-      this.step = 2
+          // connect to solana wallet
+          connection = await window.solana.connect() 
+          this.step = 2
 
-      // Signs message to verify authority
-      const message = this.$config.message
-      const encodedMessage = new TextEncoder().encode(message)
-      const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-      this.signature = signedMessage.signature
-      // @ts-ignore
-      this.publicKey = connection.publicKey.toString()
+          // Signs message to verify authority
+          const message = this.$config.message
+          const encodedMessage = new TextEncoder().encode(message)
+          const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
+          this.signature = signedMessage.signature
+          // @ts-ignore
+          this.publicKey = connection.publicKey.toString()
+
+          // pre-validate the signature
+          try {
+            let res = await axios.post('/api/connectWallet', {
+              signature: this.signature,
+              publicKey: this.publicKey
+            })
+            console.log("validated signature for wallet", this.publicKey)
+          } catch (e) {
+            console.log("signature could not be validated", e)
+          }
+        } catch (e) {
+          console.log(e)
+          this.step = 11
+          return
+        }
+      }
 
       // determine if there is an existing project for user 
       let res 

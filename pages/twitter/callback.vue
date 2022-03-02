@@ -6,6 +6,9 @@
         </div>
         <div class="block text-gray-700 text-sm mx-auto" v-if="step === 2">
             ✅ Successfully connected @{{userName}}!
+            <br>
+            <br>
+            <a href="/manage" class="hyperlink">Back to project</a>
         </div>
         <div class="block text-gray-700 text-sm mx-auto" v-if="step === 3">
             {{error}}
@@ -46,6 +49,22 @@ export default Vue.extend({
   },
   async mounted() {
 
+    // determine if user is already logged in
+    try {
+      let res = await axios.get('/api/getConnectedWallet')
+      if (res.data) {
+        if (res.data.publicKey && res.data.signature) {
+          console.log(`wallet is connected ${res.data.publicKey}`)
+          this.publicKey = res.data.publicKey
+          this.signature = res.data.signature
+        }
+      }
+    } catch (e) {
+      console.log("user is not logged in", e)
+      this.step = 4
+      return
+    }
+
     try {
         // retrieve the twitter user's access key after OAuth is completed
         let res = await axios.get('/api/twitter/callback', {
@@ -66,40 +85,20 @@ export default Vue.extend({
       return  
     }
 
-    // Connects to phantom 
-    let connection
-    try {
-       connection = await window.solana.connect() 
-    } catch (e) {
-      console.log(e) 
-      this.step=4
-      return 
-    }
-
-    this.step = 5
-
-    try {
-        // Signs message to verify authority
-        const message = this.$config.message
-        const encodedMessage = new TextEncoder().encode(message)
-        const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-        this.signature = signedMessage.signature
-        // @ts-ignore
-        this.publicKey = connection.publicKey.toString()
-
-        // save the access key
-        let res2 = await axios.post('/api/updateProject', {
-          // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
-          publicKey: connection.publicKey.toString(),
-          signature: signedMessage.signature,
-          twitterUsername: this.userName,
-          twitterAccessToken: this.accessToken,
-          twitterTokenSecret: this.tokenSecret
-        })
-        console.log(`saved twitter connection status: ${res2.status} `)
-        if (res2.status == 200) {
-          this.step = 2
-        }
+    try { 
+      // save the access key
+      let res2 = await axios.post('/api/updateProject', {
+        // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
+        publicKey: this.publicKey,
+        signature: this.signature,
+        twitterUsername: this.userName,
+        twitterAccessToken: this.accessToken,
+        twitterTokenSecret: this.tokenSecret
+      })
+      console.log(`saved twitter connection status: ${res2.status} `)
+      if (res2.status == 200) {
+        this.step = 2
+      }
     } catch (e) {
         console.log(e)
         this.error = e

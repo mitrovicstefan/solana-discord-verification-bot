@@ -13,6 +13,19 @@ const { Client, Intents } = require('discord.js')
 const cron = require('node-cron')
 
 /**
+ * Configure session management for select endpoints
+ */
+const sessionMiddleware = require('express-session')({
+  secret: process.env.TWITTER_SESSION_SECRET,
+  name: "verification.sid",
+  resave: true,
+  saveUninitialized: true,
+  cookie: {
+    secure: 'auto',
+  },
+})
+
+/**
  * Configure the Discord client
  */
 
@@ -593,6 +606,50 @@ const reloadHolders = async (project: any) => {
 // Configure the middleware to parse JSON
 app.use(bodyParser.json())
 
+// Endpoint to retrieve a previously connected wallet session
+app.get('/getConnectedWallet', sessionMiddleware, (req: any, res: Response) => {
+  if (req.session) {
+    if (req.session.publicKey && req.session.signature) {
+      return res.json({
+        publicKey: req.session.publicKey,
+        signature: req.session.signature
+      })
+    }
+  }
+  return res.sendStatus(401)
+})
+
+// Endpoint to disconnect a wallet from session
+app.get('/disconnectWallet', sessionMiddleware, (req: any, res: Response) => {
+  if (req.session) {
+    console.log(`disonnecting wallet address ${req.session.publicKey}`)
+    req.session.destroy(function (err: any) {
+      if (err) {
+        console.log("unable to disconnect session", err)
+      }
+    })
+  }
+  return res.sendStatus(200)
+})
+
+// Endpoint to connect a wallet to session
+app.post('/connectWallet', sessionMiddleware, (req: any, res: Response) => {
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    return res.sendStatus(400)
+  }
+
+  // save in session
+  if (req.session) {
+    console.log(`updating session public key=${publicKeyString}`)
+    req.session.publicKey = publicKeyString
+    req.session.signature = req.body.signature
+  }
+  return res.sendStatus(200)
+})
+
 // Endpoint to get all hodlers - protect it if you'd like
 app.get('/getProject', async (req: Request, res: Response) => {
   try {
@@ -680,13 +737,17 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       }
 
       // skip if not yet any verifications
-      if (config.verifications == 0) {
+      if (config.verifications < 2) {
         continue
       }
 
       // print the data and aggregate
       var data = {
         project: project,
+        project_friendly_name: config.project_friendly_name,
+        project_thumbnail: config.project_thumbnail,
+        project_twitter_name: config.project_twitter_name,
+        connected_twitter_name: config.connected_twitter_name,
         is_holder: config.is_holder,
         verifications: config.verifications,
         sales: (projectSales.sales) ? projectSales.sales.length : 0
@@ -702,6 +763,9 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       console.log("error rendering project", e)
     }
   }
+
+  // sort project data by sales and verifications
+  projectData.sort((a: any, b: any) => (a.verifications + a.sales < b.verifications + b.sales) ? 1 : ((b.verifications + b.sales < a.verifications + a.sales) ? -1 : 0))
 
   // retrieve the elapsed time since last sales query
   var lockFileContents = await read(getSalesTrackerLockPath())
@@ -725,7 +789,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
 })
 
 // Endpoint to validate a hodler and add role 
-app.post('/createProject', async (req: Request, res: Response) => {
+app.post('/createProject', async (req: any, res: Response) => {
 
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
@@ -846,7 +910,7 @@ app.post('/createProject', async (req: Request, res: Response) => {
 })
 
 // Endpoint to validate a hodler and add role 
-app.post('/updateProject', async (req: Request, res: Response) => {
+app.post('/updateProject', async (req: any, res: Response) => {
 
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
