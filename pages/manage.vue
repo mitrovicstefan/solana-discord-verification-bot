@@ -36,12 +36,17 @@
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project" v-if="!this.configResponse" placeholder="Project name">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project_friendly_name" v-if="this.configResponse" placeholder="Collection name">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project_twitter_name" placeholder="@ProjectTwitterHandle">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="project_website" placeholder="Website URL">
+        </div>
+        <div class="mb-4">
+          <h2 class="block text-gray-700 text-sm font-bold mb-2">Mint info</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="update_authority" placeholder="Update authority ID">
-          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="royalty_wallet_id" placeholder="Royalty wallet ID">
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="royalty_wallet_id" placeholder="Treasury / royalty wallet ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="spl_token" placeholder="White list token ID">
         </div>
         <div class="mb-4">
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Discord server info</h2>
+          <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_url" placeholder="Discord URL">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_server_id" placeholder="Discord server ID">
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role_id" placeholder="Discord default role ID">
         </div>
@@ -182,9 +187,11 @@ export default Vue.extend({
       project: '',
       project_friendly_name: '',
       project_twitter_name: '',
+      project_website: '',
       update_authority: '',
       spl_token: '',
       royalty_wallet_id: '',
+      discord_url: '',
       discord_server_id: '',
       discord_role_id: '',
       discord_client_id: '',
@@ -294,7 +301,9 @@ export default Vue.extend({
         this.spl_token = res.data.spl_token
         this.project_friendly_name = res.data.project_friendly_name
         this.project_twitter_name = res.data.project_twitter_name
+        this.project_website = res.data.project_website
         this.royalty_wallet_id = res.data.royalty_wallet_id
+        this.discord_url = res.data.discord_url
         this.discord_server_id = res.data.discord_server_id
         this.discord_role_id = res.data.discord_role_id
         this.discord_client_id = res.data.discord_client_id
@@ -339,7 +348,11 @@ export default Vue.extend({
             // @ts-ignore
             project_twitter_name: this.project_twitter_name,
             // @ts-ignore
+            project_website: this.project_website,
+            // @ts-ignore
             royalty_wallet_id: this.royalty_wallet_id,
+            // @ts-ignore
+            discord_url: this.discord_url,
             // @ts-ignore
             discord_server_id: this.discord_server_id,
             // @ts-ignore

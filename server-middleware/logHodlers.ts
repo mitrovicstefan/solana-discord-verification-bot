@@ -672,7 +672,9 @@ app.get('/getProject', async (req: Request, res: Response) => {
       project: projectName,
       project_friendly_name: config.project_friendly_name,
       project_twitter_name: config.project_twitter_name,
+      project_website: config.project_website,
       is_holder: config.is_holder,
+      discord_url: config.discord_url,
       discord_client_id: config.discord_client_id,
       discord_server_id: config.discord_server_id,
       discord_role_id: config.discord_role_id,
@@ -747,6 +749,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
         project_friendly_name: config.project_friendly_name,
         project_thumbnail: config.project_thumbnail,
         project_twitter_name: config.project_twitter_name,
+        project_website: config.project_website,
         connected_twitter_name: config.connected_twitter_name,
         is_holder: config.is_holder,
         verifications: config.verifications,
@@ -857,7 +860,9 @@ app.post('/createProject', async (req: any, res: Response) => {
     is_holder: isHolder,
     project_friendly_name: getFieldValue(req.body.project),
     project_twitter_name: getFieldValue(req.body.project_twitter_name),
+    project_website: getFieldValue(req.body.project_website),
     message: `Verify ${getFieldValue(req.body.project)} Discord roles`,
+    discord_url: getFieldValue(req.body.discord_url),
     discord_client_id: validateRequired("discord_client_id", getFieldValue(req.body.discord_client_id)),
     discord_server_id: validateRequired("discord_server_id", getFieldValue(req.body.discord_server_id)),
     discord_role_id: validateRequired("discord_role_id", getFieldValue(req.body.discord_role_id)),
@@ -952,6 +957,9 @@ app.post('/updateProject', async (req: any, res: Response) => {
   }
 
   // update values that have been modified
+  if (req.body.discord_url) {
+    config.discord_url = getFieldValue(req.body.discord_url)
+  }
   if (req.body.discord_client_id) {
     config.discord_client_id = getFieldValue(req.body.discord_client_id)
   }
@@ -977,6 +985,9 @@ app.post('/updateProject', async (req: any, res: Response) => {
   }
   if (req.body.project_twitter_name) {
     config.project_twitter_name = getFieldValue(req.body.project_twitter_name)
+  }
+  if (req.body.project_website) {
+    config.project_website = getFieldValue(req.body.project_website)
   }
   if (req.body.royalty_wallet_id) {
     config.royalty_wallet_id = getFieldValue(req.body.royalty_wallet_id)
