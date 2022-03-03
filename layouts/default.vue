@@ -1,16 +1,18 @@
 <template>
-  <div class="bg-gray-100 flex-col h-screen">
-    <AppHeader />
-    <div class="flex justify-center items-center flex-col mt-10 mr-10 ml-10">
-        <div class="w-full max-w-2xl">
-            <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-            <Nuxt />
-            </div>
-        </div>
+  <v-app>
+    <div class="bg-gray-100 flex-col h-screen">
+      <AppHeader />
+      <div class="flex justify-center items-center flex-col mt-5 mr-5 ml-5">
+          <div class="w-full max-w-2xl">
+              <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+              <Nuxt />
+              </div>
+          </div>
+      </div>
+      <div class="flex flex-grow"></div>
+      <AppFooter />
     </div>
-    <div class="flex flex-grow"></div>
-    <AppFooter />
-  </div>
+  </v-app>
 </template>
 
 <script lang="ts">
@@ -24,12 +26,3 @@ export default Vue.extend({
   }
 });
 </script>
-<style>
-  .hyperlink {
-    @apply text-blue-600 underline
-  }
-
-  .hyperlink:visited {
-    @apply text-purple-600
-  }
-</style>

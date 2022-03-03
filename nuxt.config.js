@@ -49,9 +49,16 @@ export default {
   buildModules: [
     // https://go.nuxtjs.dev/typescript
     '@nuxt/typescript-build',
+    // https://github.com/nuxt-community/vuetify-module
+    '@nuxtjs/vuetify',
     // https://go.nuxtjs.dev/tailwindcss
     '@nuxtjs/tailwindcss',
   ],
+
+  vuetify: {
+    optionsPath: './vuetify.options.js',
+    treeShake: true,
+  },
 
   // Modules: https://go.nuxtjs.dev/config-modules
   modules: [

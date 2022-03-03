@@ -9,9 +9,7 @@
           Your NFT project tools are associated with your Solana wallet address. Connect your wallet to access the project management console.
         </div>
         <div class="block text-gray-700 text-sm mb-5">
-          <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" @click="connectWallet" type="button">
-            Connect Wallet
-          </button>
+          <v-btn color="primary" @click="connectWallet">Connect Wallet</v-btn>
         </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Show me how to do it</h2>
         <div class="block text-gray-700 text-sm mb-5">
@@ -71,8 +69,8 @@
           <h2 class="block text-gray-700 text-sm font-bold mb-2">Sales tracking notifications</h2>
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="password" v-model="discord_webhook" placeholder="Discord webhook URL">
         </div>
-        <button class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button" @click="disconnectWallet">Cancel</button>
-        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">Save</button>
+        <v-btn color="primary" @click="submitForm">Save</v-btn>
+        <v-btn color="grey" @click="disconnectWallet">Cancel</v-btn>
       </form>
     </div>
     <div v-if="step === 4">
@@ -86,6 +84,7 @@
         <div class="block text-gray-700 text-sm mb-2">
           Successfully created project.
         </div>
+        <v-btn class="primary" @click="goToManage">Edit</v-btn>
     </div>
     <div v-if="step === 6">
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Oops, something went wrong</h2>
@@ -98,6 +97,7 @@
         <div class="block text-gray-700 text-sm mb-2">
           Successfully updated project.
         </div>
+        <v-btn class="primary" @click="goToManage">Edit</v-btn>
     </div>
     <div v-if="step === 8">
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Looks like you already own a project</h2>
@@ -313,6 +313,10 @@ export default Vue.extend({
           this.discord_roles = res.data.discord_roles
         }
       }
+      this.step = 3
+    },
+    goToManage(){
+      this.$router.push('/manage');
       this.step = 3
     },
     add () {

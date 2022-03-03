@@ -188,10 +188,6 @@ function getPublicKeyFilePath(address: any) {
   return `./config/publicKey-${address}.json`
 }
 
-function getServerFilePath(serverID: any) {
-  return `./config/server-${serverID}.json`
-}
-
 function getSalesFilePath(updateAuthority: any) {
   return `sales-${updateAuthority}-console.json`
 }
@@ -739,7 +735,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       }
 
       // skip if not yet any verifications
-      if (config.verifications < 2) {
+      if (!req.query["all"] && config.verifications < 2) {
         continue
       }
 
@@ -750,6 +746,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
         project_thumbnail: config.project_thumbnail,
         project_twitter_name: config.project_twitter_name,
         project_website: config.project_website,
+        discord_url: config.discord_url,
         connected_twitter_name: config.connected_twitter_name,
         is_holder: config.is_holder,
         verifications: config.verifications,
@@ -809,17 +806,6 @@ app.post('/createProject', async (req: any, res: Response) => {
     }
   } catch (e) {
     console.log("error retreiving existing project", e)
-  }
-
-  // validate the server ID is not already in use
-  try {
-    var serverFile = JSON.parse(await read(getServerFilePath(req.body.discord_server_id)))
-    if (serverFile && serverFile.projectName != "") {
-      console.log(`server ${req.body.discord_server_id} already associated with project ${serverFile.projectName}`)
-      return res.sendStatus(409)
-    }
-  } catch (e) {
-    console.log("error looking up existing server", e)
   }
 
   // ensure we have a proper project name
@@ -895,14 +881,6 @@ app.post('/createProject', async (req: any, res: Response) => {
 
   // create mapping of wallet public key to project name
   isSuccessful = await write(getPublicKeyFilePath(publicKeyString), JSON.stringify({
-    projectName: projectNameCamel
-  }))
-  if (!isSuccessful) {
-    return res.sendStatus(500)
-  }
-
-  // create mapping of discord servier id to project name
-  isSuccessful = await write(getServerFilePath(newProjectConfig.discord_server_id), JSON.stringify({
     projectName: projectNameCamel
   }))
   if (!isSuccessful) {
