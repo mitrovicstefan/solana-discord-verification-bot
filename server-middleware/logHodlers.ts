@@ -433,6 +433,14 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
     console.log("Error parsing NFTs", e)
   }
 
+  // determine list of valid update authorities
+  var updateAuthorityList = [config.update_authority]
+  if (config.update_authority_alts) {
+    config.update_authority_alts.forEach((ua: any) => {
+      updateAuthorityList.push(ua)
+    })
+  }
+
   // initialize an empty wallet to be returned
   let nfts: any[] = [];
   let wallet = {
@@ -440,8 +448,8 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
     splBalance: 0
   }
   for (let item of tokenList) {
-    if (item.updateAuthority === config.update_authority) {
-      console.log(`wallet ${walletAddress} item ${item.mint} matches expected update authority`)
+    if (updateAuthorityList.includes(item.updateAuthority)) {
+      console.log(`wallet ${walletAddress} item ${item.mint} matches an expected update authority (${JSON.stringify(updateAuthorityList)})`)
       if (config.roles && config.roles.length > 0 && config.is_holder) {
         console.log(`retrieving token metadata for ${item.mint}`)
         item.attributes = await getTokenAttributes(item.data.uri)
