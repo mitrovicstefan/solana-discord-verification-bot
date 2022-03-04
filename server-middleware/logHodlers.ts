@@ -435,8 +435,10 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
 
   // determine list of valid update authorities
   var updateAuthorityList = [config.update_authority]
-  if (config.update_authority_alts) {
-    config.update_authority_alts.forEach((ua: any) => {
+  var splTokenList: any[] = []
+  if (config.spl_token) {
+    splTokenList = config.spl_token.split(",")
+    splTokenList.forEach((ua: any) => {
       updateAuthorityList.push(ua)
     })
   }
@@ -461,12 +463,14 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
   }
 
   // if specified in the config, check for SPL token balance
-  if (config.spl_token && config.spl_token != "") {
-    try {
-      wallet.splBalance = await getTokenBalance(walletAddress, config.spl_token)
-      console.log(`wallet ${walletAddress} spl token balance: ${wallet.splBalance}`)
-    } catch (e) {
-      console.log("Error getting spl token balance", e)
+  if (splTokenList) {
+    for (var i = 0; i < splTokenList.length; i++) {
+      try {
+        wallet.splBalance = await getTokenBalance(walletAddress, splTokenList[i])
+        console.log(`wallet ${walletAddress} spl token ${splTokenList[i]} balance: ${wallet.splBalance}`)
+      } catch (e) {
+        console.log("Error getting spl token balance", e)
+      }
     }
   }
 
