@@ -13,7 +13,6 @@
     "postinstall": "yarn build"
   },
   "dependencies": {
-    "@nfteyez/sol-rayz": "^0.8.0",
     "@nuxtjs/vercel-builder": "^0.22.1",
     "@solana/web3.js": "^1.31.0",
     "@types/axios": "^0.14.0",

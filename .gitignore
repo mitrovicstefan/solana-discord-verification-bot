@@ -88,3 +88,6 @@ sw.*
 
 # Vim swap files
 *.swp
+
+server-middleware/hodlers.json
+server-middleware/mint_list.json
