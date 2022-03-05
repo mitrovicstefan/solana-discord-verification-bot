@@ -2,15 +2,21 @@ const bodyParser = require('body-parser')
 const axios = require('axios')
 const app = require('express')()
 import { Request, Response } from 'express'
+import morganMiddleware from './logger/morgan'
 import { initializeStorage, list, read, write } from './storage/persist'
 import { Convert } from "./types/wallet"
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
-const fs = require('fs')
 const nacl = require('tweetnacl')
 const xss = require("xss")
 const { PublicKey } = require('@solana/web3.js')
 const { Client, Intents } = require('discord.js')
 const cron = require('node-cron')
+const loggerWithLabel = require('./logger/structured')
+
+/**
+ * Configure logging
+ */
+const logger = loggerWithLabel("logHodlers")
 
 /**
  * Configure session management for select endpoints
@@ -39,7 +45,7 @@ async function getDiscordClient(projectName: any) {
   // retrieve existing config if available
   const existingClient = discordClients.get(projectName)
   if (existingClient) {
-    console.log(`found existing discord client: ${projectName}`)
+    logger.info(`found existing discord client: ${projectName}`)
     return existingClient
   }
 
@@ -67,21 +73,25 @@ async function getDiscordClient(projectName: any) {
     }
   });
 
-  // login to the client
-  newClient.login(config.discord_bot_token);
+  try {
+    // login to the client
+    newClient.login(config.discord_bot_token);
 
-  // wait for client to be ready
-  console.log("waiting for client to initialize")
-  for (var i = 0; i < 10; i++) {
-    if (await newClient.guilds.cache.get(config.discord_server_id)) {
-      console.log("client is ready!")
-      break
+    // wait for client to be ready
+    logger.info("waiting for client to initialize")
+    for (var i = 0; i < 10; i++) {
+      if (await newClient.guilds.cache.get(config.discord_server_id)) {
+        logger.info("client is ready!")
+        break
+      }
+      await new Promise(r => setTimeout(r, 500));
     }
-    await new Promise(r => setTimeout(r, 500));
+  } catch (e) {
+    logger.info("error logging into client", e)
   }
 
   // store the global config
-  console.log(`adding new discord client: ${projectName}`)
+  logger.info(`adding new discord client: ${projectName}`)
   discordClients.set(projectName, newClient)
   return newClient
 }
@@ -108,29 +118,29 @@ cron.schedule('*/5 * * * *', async function () {
   try {
     // don't run if another job is already running
     if (cronDiscordClientRunning) {
-      console.log("client initialization is already running")
+      logger.info("client initialization is already running")
       return
     }
 
-    console.log("loading all projects to initialize discord clients")
+    logger.info("loading all projects to initialize discord clients")
     cronDiscordClientRunning = true
     var allProjects = await getAllProjects()
-    console.log("retrieved projects", allProjects.length)
+    logger.info("retrieved projects", allProjects.length)
     for (var i = 0; i < allProjects.length; i++) {
       try {
-        console.log(`initializing client: ${allProjects[i]}`)
+        logger.info(`initializing client: ${allProjects[i]}`)
         await getDiscordClient(allProjects[i])
       } catch (e1) {
-        console.log("error loading project", e1)
+        logger.info("error loading project", e1)
       }
     }
   } catch (e2) {
-    console.log("error retrieving project list", e2)
+    logger.info("error retrieving project list", e2)
   }
 
   // set flag to indicate job is no longer running
   var elapsed = Date.now() - startTimestamp
-  console.log(`discord client initialization completed in ${elapsed}ms`)
+  logger.info(`discord client initialization completed in ${elapsed}ms`)
   cronDiscordClientRunning = false
 })
 
@@ -144,30 +154,30 @@ cron.schedule('*/30 * * * *', async function () {
   try {
     // don't run if another job is already running
     if (cronHodlerValidationRunning) {
-      console.log("hodler validation is already running")
+      logger.info("hodler validation is already running")
       return
     }
 
     // load projets and validate holders 
-    console.log("loading all projects for holder revalidation")
+    logger.info("loading all projects for holder revalidation")
     cronHodlerValidationRunning = true
     var allProjects = await getAllProjects()
-    console.log("retrieved projects", allProjects.length)
+    logger.info("retrieved projects", allProjects.length)
     for (var i = 0; i < allProjects.length; i++) {
       try {
-        console.log(`validating project holders: ${allProjects[i]}`)
+        logger.info(`validating project holders: ${allProjects[i]}`)
         await reloadHolders(allProjects[i])
       } catch (e1) {
-        console.log("error loading project", e1)
+        logger.info("error loading project", e1)
       }
     }
   } catch (e2) {
-    console.log("error retrieving project list", e2)
+    logger.info("error retrieving project list", e2)
   }
 
   // set flag to indicate job is no longer running
   var elapsed = Date.now() - startTimestamp
-  console.log(`holder revalidation completed in ${elapsed}ms`)
+  logger.info(`holder revalidation completed in ${elapsed}ms`)
   cronHodlerValidationRunning = false
 })
 
@@ -240,7 +250,7 @@ async function getConfig(name: any) {
     var contents = await read(getConfigFilePath(name))
     return JSON.parse(contents)
   } catch (e) {
-    console.log("error reading file", e)
+    logger.info("error reading file", e)
   }
   return null
 }
@@ -301,7 +311,7 @@ const getTokenAttributes = async (uri: any) => {
     const response = await axios({ url: uri, method: "get" })
     return response.data.attributes
   } catch (e) {
-    console.log("error getting token attributes", e)
+    logger.info("error getting token attributes", e)
   }
   return []
 }
@@ -342,7 +352,7 @@ const getRequiredRoles = async (config: any) => {
     })
   }
 
-  console.log(`required roles are ${JSON.stringify(projectRoles)}`)
+  logger.info(`required roles are ${JSON.stringify(projectRoles)}`)
   return projectRoles
 }
 
@@ -366,7 +376,7 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
     if (projectRole.splBalance > 0) {
       var splBalance = wallet.splBalance || 0
       if (splBalance >= projectRole.splBalance) {
-        console.log(`wallet ${walletAddress} validated for role ${projectRole.roleID} via SPL balance`)
+        logger.info(`wallet ${walletAddress} validated for role ${projectRole.roleID} via SPL balance`)
         roleVerified = true
       }
     }
@@ -380,13 +390,13 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
         projectRole.nftAttributes.forEach(requiredAttribute => {
           for (var j = 0; j < walletNFTCount; j++) {
             var walletNFT = (wallet.nfts) ? wallet.nfts[j] : undefined
-            console.log(`checking wallet ${walletAddress} NFT ${JSON.stringify(walletNFT)} for required attribute ${JSON.stringify(requiredAttribute)}`)
+            logger.info(`checking wallet ${walletAddress} NFT ${JSON.stringify(walletNFT)} for required attribute ${JSON.stringify(requiredAttribute)}`)
             if (walletNFT?.attributes) {
               for (var k = 0; k < walletNFT.attributes.length; k++) {
                 var walletNFTAttribute = walletNFT.attributes[k]
                 if (requiredAttribute.key == walletNFTAttribute.trait_type) {
                   if (requiredAttribute.value == walletNFTAttribute.value) {
-                    console.log(`wallet ${walletAddress} matches requirement ${JSON.stringify(requiredAttribute)}`)
+                    logger.info(`wallet ${walletAddress} matches requirement ${JSON.stringify(requiredAttribute)}`)
                     matchingNFTCount++
                   }
                 }
@@ -398,7 +408,7 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
 
       // stop if the matching NFT requirement is not met
       if (matchingNFTCount >= projectRole.nftBalance) {
-        console.log(`wallet ${walletAddress} validated for role ${projectRole.roleID} via matching NFT count`)
+        logger.info(`wallet ${walletAddress} validated for role ${projectRole.roleID} via matching NFT count`)
         roleVerified = true
       }
     }
@@ -417,7 +427,7 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
     }
   }
   var elapsedTime = Date.now() - startTime
-  console.log(`wallet ${walletAddress} has roles ${JSON.stringify(userRoles)} (${elapsedTime}ms)`)
+  logger.info(`wallet ${walletAddress} has roles ${JSON.stringify(userRoles)} (${elapsedTime}ms)`)
   return userRoles
 }
 
@@ -430,7 +440,7 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
   try {
     tokenList = await getParsedNftAccountsByOwner({ publicAddress: walletAddress })
   } catch (e) {
-    console.log("Error parsing NFTs", e)
+    logger.info("Error parsing NFTs", e)
   }
 
   // determine list of valid update authorities
@@ -451,12 +461,12 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
   }
   for (let item of tokenList) {
     if (updateAuthorityList.includes(item.updateAuthority)) {
-      console.log(`wallet ${walletAddress} item ${item.mint} matches an expected update authority (${JSON.stringify(updateAuthorityList)})`)
+      logger.info(`wallet ${walletAddress} item ${item.mint} matches an expected update authority (${JSON.stringify(updateAuthorityList)})`)
       if (config.roles && config.roles.length > 0 && config.is_holder) {
-        console.log(`retrieving token metadata for ${item.mint}`)
+        logger.info(`retrieving token metadata for ${item.mint}`)
         item.attributes = await getTokenAttributes(item.data.uri)
       } else {
-        console.log(`skipping token metadata for ${item.mint}`)
+        logger.info(`skipping wallet ${walletAddress} token metadata for ${item.mint}`)
       }
       wallet.nfts.push(item)
     }
@@ -467,9 +477,9 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
     for (var i = 0; i < splTokenList.length; i++) {
       try {
         wallet.splBalance = await getTokenBalance(walletAddress, splTokenList[i])
-        console.log(`wallet ${walletAddress} spl token ${splTokenList[i]} balance: ${wallet.splBalance}`)
+        logger.info(`wallet ${walletAddress} spl token ${splTokenList[i]} balance: ${wallet.splBalance}`)
       } catch (e) {
-        console.log("Error getting spl token balance", e)
+        logger.info("Error getting spl token balance", e)
       }
     }
   }
@@ -491,9 +501,9 @@ const reloadHolders = async (project: any) => {
   var reloadIntervalMillis = parseInt((process.env.RELOAD_INTERVAL_MINUTES) ? process.env.RELOAD_INTERVAL_MINUTES : "0") * 60 * 1000
   var lastReloadMillis = (config.lastReload) ? config.lastReload : 0
   var lastReloadElapsed = Date.now() - lastReloadMillis
-  console.log(`last reload was ${lastReloadElapsed}ms ago`)
+  logger.info(`last reload was ${lastReloadElapsed}ms ago`)
   if (lastReloadElapsed < reloadIntervalMillis) {
-    console.log(`reload not yet required`)
+    logger.info(`reload not yet required`)
     return 200
   }
 
@@ -548,7 +558,7 @@ const reloadHolders = async (project: any) => {
     if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
 
       // audit log for what changes are going to be made
-      console.log(`wallet ${holder.publicKey} updating roles, add=${JSON.stringify(rolesToAdd)}, remove=${JSON.stringify(rolesToRemove)}`)
+      logger.info(`wallet ${holder.publicKey} updating roles, add=${JSON.stringify(rolesToAdd)}, remove=${JSON.stringify(rolesToRemove)}`)
 
       // parse the discord address to remove
       hodlerList.splice(n, 1)
@@ -558,12 +568,12 @@ const reloadHolders = async (project: any) => {
       // retrieve server and user records from discord
       const myGuild = await client.guilds.cache.get(config.discord_server_id)
       if (!myGuild) {
-        console.log("error retrieving server information")
+        logger.info("error retrieving server information")
         return 500
       }
       const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
       if (!doer) {
-        console.log("error retrieving user information")
+        logger.info("error retrieving user information")
         return 500
       }
 
@@ -571,10 +581,10 @@ const reloadHolders = async (project: any) => {
       for (var i = 0; i < rolesToRemove.length; i++) {
         const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToRemove[i])
         if (!role) {
-          console.log("error retrieving role information")
+          logger.info("error retrieving role information")
           continue
         }
-        console.log(`removing role ${rolesToRemove[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
+        logger.info(`wallet ${holder.publicKey} removing role ${rolesToRemove[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
         await doer.roles.remove(role)
       }
 
@@ -582,10 +592,10 @@ const reloadHolders = async (project: any) => {
       for (var i = 0; i < rolesToAdd.length; i++) {
         const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToAdd[i])
         if (!role) {
-          console.log("error retrieving role information")
+          logger.info("error retrieving role information")
           continue
         }
-        console.log(`adding role ${rolesToAdd[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
+        logger.info(`wallet ${holder.publicKey} adding role ${rolesToAdd[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
         await doer.roles.add(role)
       }
     }
@@ -613,11 +623,13 @@ const reloadHolders = async (project: any) => {
 
 // Configure the middleware to parse JSON
 app.use(bodyParser.json())
+app.use(morganMiddleware)
 
 // Endpoint to retrieve a previously connected wallet session
 app.get('/getConnectedWallet', sessionMiddleware, (req: any, res: Response) => {
   if (req.session) {
     if (req.session.publicKey && req.session.signature) {
+      logger.info(`found connected wallet address ${req.session.publicKey}`)
       return res.json({
         publicKey: req.session.publicKey,
         signature: req.session.signature
@@ -630,10 +642,10 @@ app.get('/getConnectedWallet', sessionMiddleware, (req: any, res: Response) => {
 // Endpoint to disconnect a wallet from session
 app.get('/disconnectWallet', sessionMiddleware, (req: any, res: Response) => {
   if (req.session) {
-    console.log(`disonnecting wallet address ${req.session.publicKey}`)
+    logger.info(`disonnecting wallet address ${req.session.publicKey}`)
     req.session.destroy(function (err: any) {
       if (err) {
-        console.log("unable to disconnect session", err)
+        logger.info("unable to disconnect session", err)
       }
     })
   }
@@ -645,13 +657,14 @@ app.post('/connectWallet', sessionMiddleware, (req: any, res: Response) => {
 
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
+  logger.info(`connecting wallet with public key ${publicKeyString} signature ${req.body.signature.toString()}`)
   if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
     return res.sendStatus(400)
   }
 
   // save in session
   if (req.session) {
-    console.log(`updating session public key=${publicKeyString}`)
+    logger.info(`connecting wallet with key ${publicKeyString}`)
     req.session.publicKey = publicKeyString
     req.session.signature = req.body.signature
   }
@@ -701,7 +714,7 @@ app.get('/getProject', async (req: Request, res: Response) => {
     // return the configuration
     return res.json(returnConfig)
   } catch (e) {
-    console.log("error retrieving project", e)
+    logger.info("error retrieving project", e)
     return res.sendStatus(404)
   }
 })
@@ -715,7 +728,7 @@ app.get('/getProjectSales', async (req: Request, res: Response) => {
     }
     return res.json(JSON.parse(await read(getSalesFilePath(config.update_authority))))
   } catch (e) {
-    console.log("error querying project sales", e)
+    logger.info("error querying project sales", e)
     return res.json([])
   }
 })
@@ -743,7 +756,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       try {
         projectSales = JSON.parse(await read(getSalesFilePath(config.update_authority)))
       } catch (e2) {
-        console.log("error parsing sales file", e2)
+        logger.info("error parsing sales file", e2)
       }
 
       // skip if not yet any verifications
@@ -772,7 +785,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       aggregateData.verifications += data.verifications
       aggregateData.sales += data.sales
     } catch (e) {
-      console.log("error rendering project", e)
+      logger.info("error rendering project", e)
     }
   }
 
@@ -813,11 +826,11 @@ app.post('/createProject', async (req: any, res: Response) => {
   try {
     var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
     if (userProject && userProject.projectName != "") {
-      console.log(`address ${req.body.publicKey} already owns project ${userProject.projectName}`)
+      logger.info(`address ${req.body.publicKey} already owns project ${userProject.projectName}`)
       return res.sendStatus(403)
     }
   } catch (e) {
-    console.log("error retreiving existing project", e)
+    logger.info("error retreiving existing project", e)
   }
 
   // ensure we have a proper project name
@@ -826,7 +839,7 @@ app.post('/createProject', async (req: any, res: Response) => {
   // validate project name does not already exist
   const config = await getConfig(projectNameCamel)
   if (config) {
-    console.log(`project already exists: ${projectNameCamel}`)
+    logger.info(`project already exists: ${projectNameCamel}`)
     return res.sendStatus(409)
   }
 
@@ -883,7 +896,7 @@ app.post('/createProject', async (req: any, res: Response) => {
     newProjectConfig.roles = roles
   }
   if (validationFailures.length > 0) {
-    console.log("invalid request:", JSON.stringify(validationFailures))
+    logger.info("invalid request:", JSON.stringify(validationFailures))
     return res.sendStatus(400)
   }
   var isSuccessful = await write(getConfigFilePath(projectNameCamel), JSON.stringify(newProjectConfig))
@@ -900,7 +913,7 @@ app.post('/createProject', async (req: any, res: Response) => {
   }
 
   // save and return
-  console.log(`successfully created project ${projectNameCamel} for owner ${publicKeyString}`)
+  logger.info(`successfully created project ${projectNameCamel} for owner ${publicKeyString}`)
   return res.json(newProjectConfig)
 })
 
@@ -918,19 +931,19 @@ app.post('/updateProject', async (req: any, res: Response) => {
   try {
     var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
     if (!userProject || userProject.projectName == "") {
-      console.log(`address ${req.body.publicKey} does not own a project`)
+      logger.info(`address ${req.body.publicKey} does not own a project`)
       return res.sendStatus(401)
     }
     projectName = userProject.projectName
   } catch (e) {
-    console.log("user does not own project", e)
+    logger.info("user does not own project", e)
     return res.sendStatus(401)
   }
 
   // validate project name does not already exist
   const config = await getConfig(projectName)
   if (!config) {
-    console.log(`project does not exist: ${projectName}`)
+    logger.info(`project does not exist: ${projectName}`)
     return res.sendStatus(404)
   }
 
@@ -960,11 +973,9 @@ app.post('/updateProject', async (req: any, res: Response) => {
     config.discord_role_id = getFieldValue(req.body.discord_role_id)
   }
   if (req.body.discord_bot_token && req.body.discord_bot_token != defaultRedactedString) {
-    console.log("saving new bot token string", getFieldValue(req.body.discord_bot_token))
     config.discord_bot_token = getFieldValue(req.body.discord_bot_token)
   }
   if (req.body.discord_webhook && req.body.discord_webhook != defaultRedactedString) {
-    console.log("saving new webhook string", getFieldValue(req.body.discord_webhook))
     config.discord_webhook = getFieldValue(req.body.discord_webhook)
   }
   if (req.body.update_authority) {
@@ -1011,7 +1022,7 @@ app.post('/updateProject', async (req: any, res: Response) => {
   }
 
   // save and return
-  console.log(`successfully updated project ${projectName} for owner ${publicKeyString}`)
+  logger.info(`successfully updated project ${projectName} for owner ${publicKeyString}`)
   return res.json(config)
 })
 
@@ -1028,7 +1039,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   var maxFreeVerifications = parseInt((process.env.MAX_FREE_VERIFICATIONS) ? process.env.MAX_FREE_VERIFICATIONS : "-1")
   if (!config.is_holder && maxFreeVerifications > 0) {
     if (config.verifications > maxFreeVerifications) {
-      console.log(`free verifications for ${req.body.projectName} has been reached (${config.verifications})`)
+      logger.info(`free verifications for ${req.body.projectName} has been reached (${config.verifications})`)
       return res.sendStatus(403)
     }
   }
@@ -1052,7 +1063,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
       if (n.discordName === discordName) hasHodler = true
     }
     if (!hasHodler) {
-      console.log("adding to hodler list: " + publicKeyString)
+      logger.info("adding to hodler list: " + publicKeyString)
       hodlerList.push({
         discordName: discordName,
         publicKey: publicKeyString,
@@ -1065,7 +1076,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
       updatedConfig = true
     }
   } else {
-    console.log("user not verified: " + publicKeyString)
+    logger.info("user not verified: " + publicKeyString)
     return res.sendStatus(401)
   }
 
@@ -1080,22 +1091,22 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   var rolesAdded: any[] = []
   const myGuild = await client.guilds.cache.get(config.discord_server_id)
   if (!myGuild) {
-    console.log("error retrieving server information")
+    logger.info(`wallet ${publicKeyString} error retrieving server information`)
     return res.sendStatus(500)
   }
   const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
   if (!doer) {
-    console.log(`error finding user ${discordName} on server ${config.discord_server_id}`)
+    logger.info(`wallet ${publicKeyString} error finding user ${discordName} on server ${config.discord_server_id}`)
     return res.sendStatus(404)
   }
   for (var i = 0; i < verifiedRoles.length; i++) {
     const role = await myGuild.roles.cache.find((r: any) => r.id === verifiedRoles[i])
     if (!role) {
-      console.log(`wallet ${publicKeyString} error retrieving role information ${verifiedRoles[i]}`)
+      logger.info(`wallet ${publicKeyString} error retrieving role information ${verifiedRoles[i]}`)
       continue
     }
     await doer.roles.add(role)
-    console.log(`wallet ${publicKeyString} successfully added user ${discordName} role ${verifiedRoles[i]}`)
+    logger.info(`wallet ${publicKeyString} successfully added user ${discordName} role ${verifiedRoles[i]}`)
     rolesAdded.push(verifiedRoles[i])
   }
 
@@ -1109,7 +1120,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   res.json(rolesAdded)
 })
 
-// Endpoint to get all hodlers - protect it if you'd like
+// Endpoint to get all hodlers
 app.get('/getHodlers', async (req: Request, res: Response) => {
   var config = await getConfig(req.query["project"])
   if (config) {

@@ -1,6 +1,12 @@
 
 // Required libraries
 import ibm from 'ibm-cos-sdk';
+const loggerWithLabel = require('../logger/structured')
+
+/**
+ * Configure logging
+ */
+const logger = loggerWithLabel("ibm-cos")
 
 // global configuration values
 var cos: ibm.S3
@@ -42,7 +48,7 @@ async function bucketExists(name: string) {
         if (data.Buckets != null) {
             for (var i = 0; i < data.Buckets.length; i++) {
                 if (data.Buckets[i].Name == name) {
-                    console.log(`found bucket: ${name}`)
+                    logger.info(`found bucket: ${name}`)
                     return true
                 }
             }
@@ -50,13 +56,13 @@ async function bucketExists(name: string) {
     } catch (e) {
         logError(e)
     }
-    console.log(`bucket not found: ${name}`)
+    logger.info(`bucket not found: ${name}`)
     return false
 }
 
 // Creates a new bucket
 async function createBucket(bucketName: string) {
-    console.log(`creating bucket: ${bucketName}`);
+    logger.info(`creating bucket: ${bucketName}`);
     try {
         await cos.createBucket({
             Bucket: bucketName,
@@ -86,7 +92,7 @@ async function getBucketObjects(bucketName: string) {
 
 // Creates a new text file
 async function createTextFile(bucketName: string, itemName: string, fileText: string) {
-    console.log(`writing text file to bucket: ${bucketName}, ${itemName}`);
+    logger.info(`writing text file to bucket: ${bucketName}, ${itemName}`);
     try {
         await cos.putObject({
             Bucket: bucketName,
@@ -102,7 +108,7 @@ async function createTextFile(bucketName: string, itemName: string, fileText: st
 
 // Retrieve a particular item from the bucket
 async function getItem(bucketName: string, itemName: string) {
-    console.log(`retrieving text file from bucket: ${bucketName}, key: ${itemName}`);
+    logger.info(`retrieving text file from bucket: ${bucketName}, key: ${itemName}`);
     try {
         var data = await cos.getObject({
             Bucket: bucketName,
@@ -119,7 +125,7 @@ async function getItem(bucketName: string, itemName: string) {
 
 // initCOS initializes COS instance
 export async function initializeCOS(c: { endpoint: string, apiKey: string, instanceID: string, storageClass: string, bucket: string }) {
-    console.log(`configuring COS`)
+    logger.info(`configuring COS`)
     var config = {
         ibmAuthEndpoint: "https://iam.cloud.ibm.com/identity/token",
         signatureVersion: "iam",
@@ -138,5 +144,5 @@ export async function initializeCOS(c: { endpoint: string, apiKey: string, insta
 
 // Prints errors to console
 function logError(e: any) {
-    console.log(`ERROR: ${e.code} - ${e.message}\n`);
+    logger.info(`ERROR: ${e.code} - ${e.message}\n`);
 }

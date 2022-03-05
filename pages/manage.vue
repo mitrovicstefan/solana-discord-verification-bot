@@ -174,6 +174,7 @@
 <script lang="ts">
 import Vue from 'vue'
 import axios from 'axios'
+import Solflare from '@solflare-wallet/sdk';
 
 export default Vue.extend({
   data() {
@@ -243,21 +244,20 @@ export default Vue.extend({
     async connectWallet() {
       
       if (!this.signature || !this.publicKey) {
-        // Connects to phantom 
-        let connection
         try {
 
           // connect to solana wallet
-          connection = await window.solana.connect() 
+          const wallet = new Solflare();
+          await wallet.connect(); 
           this.step = 2
-
+ 
           // Signs message to verify authority
           const message = this.$config.message
           const encodedMessage = new TextEncoder().encode(message)
-          const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-          this.signature = signedMessage.signature
+          const signedMessage = await wallet.signMessage(encodedMessage, 'utf8')
+          this.signature = new TextDecoder().decode(signedMessage)
           // @ts-ignore
-          this.publicKey = connection.publicKey.toString()
+          this.publicKey = wallet.publicKey.toString()
 
           // pre-validate the signature
           try {
