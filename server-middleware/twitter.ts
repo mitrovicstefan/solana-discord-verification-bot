@@ -1,7 +1,14 @@
 const app = require('express')()
 const passport = require('passport');
 import { Response } from 'express';
+import morganMiddleware from './logger/morgan';
 const TwitterStrategy = require('passport-twitter').Strategy;
+const loggerWithLabel = require('./logger/structured')
+
+/**
+ * Configure logging
+ */
+const logger = loggerWithLabel("twitter")
 
 app.use(require('cookie-parser')());
 app.use(require('body-parser').urlencoded({ extended: true }));
@@ -17,6 +24,7 @@ app.use(
 );
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(morganMiddleware)
 
 // twitter
 passport.use(
@@ -45,7 +53,7 @@ passport.deserializeUser((obj: any, done: any) => {
 app.get('/', passport.authenticate('twitter'));
 app.get('/callback', passport.authenticate('twitter'), (req: any, res: Response) => {
     if (req.user) {
-        console.log("connected user: ", JSON.stringify(req.user, null, 2))
+        logger.info("connected user: ", JSON.stringify(req.user, null, 2))
     }
     res.json({
         user: req.user,
