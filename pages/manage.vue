@@ -247,8 +247,17 @@ export default Vue.extend({
       if (!this.signature || !this.publicKey) {
         try {
 
-          // connect to solana wallet
-          const wallet = new Solflare();
+          // determine the type of wallet
+          let wallet 
+          if (window.solana.isPhantom) {
+            // connect to phantom wallet
+            wallet = window.solana
+          } else {
+            // connect to solflare wallet
+            wallet = new Solflare();
+          }
+
+          // connect to the wallet interface
           await wallet.connect(); 
           this.step = 2
  
@@ -256,7 +265,7 @@ export default Vue.extend({
           const message = this.$config.message
           const encodedMessage = new TextEncoder().encode(message)
           const signedMessage = await wallet.signMessage(encodedMessage, 'utf8')
-          this.signature = binary_to_base58(signedMessage)
+          this.signature = binary_to_base58((signedMessage.signature)?signedMessage.signature:signedMessage)
           console.log(`signed message ${this.signature}`)
           // @ts-ignore
           this.publicKey = wallet.publicKey.toString()

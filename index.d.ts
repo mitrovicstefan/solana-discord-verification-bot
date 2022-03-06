@@ -7,12 +7,6 @@ declare global {
       isPhantom: boolean,
       connect: () => void,
       signMessage: (message: Uint8Array, encoding: string) => any
-    },
-    solflare: {
-      request: (params: { method: string, params: { message: Uint8Array, display: string } }) => any,
-      isSolflare: boolean,
-      connect: () => void,
-      signMessage: (message: Uint8Array, encoding: string) => any
     }
   }
 }
