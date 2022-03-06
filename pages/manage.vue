@@ -175,6 +175,7 @@
 import Vue from 'vue'
 import axios from 'axios'
 import Solflare from '@solflare-wallet/sdk';
+const { binary_to_base58 } = require('base58-js')
 
 export default Vue.extend({
   data() {
@@ -255,7 +256,8 @@ export default Vue.extend({
           const message = this.$config.message
           const encodedMessage = new TextEncoder().encode(message)
           const signedMessage = await wallet.signMessage(encodedMessage, 'utf8')
-          this.signature = new TextDecoder().decode(signedMessage)
+          this.signature = binary_to_base58(signedMessage)
+          console.log(`signed message ${this.signature}`)
           // @ts-ignore
           this.publicKey = wallet.publicKey.toString()
 

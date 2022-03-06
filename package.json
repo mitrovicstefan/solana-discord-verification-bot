@@ -20,6 +20,7 @@
     "@types/axios": "^0.14.0",
     "@types/morgan": "^1.9.3",
     "axios": "^0.24.0",
+    "base58-js": "^1.0.0",
     "cookie-parser": "^1.4.6",
     "core-js": "^3.15.1",
     "discord.js": "^13.3.1",
