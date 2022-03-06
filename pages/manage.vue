@@ -28,7 +28,7 @@
               <v-card-title class="text-h5">
                 Choose a Wallet
               </v-card-title>
-              <v-card-text>The wallet will inspected to verify the project's NFT requirements.</v-card-text>
+              <v-card-text>The wallet will be used as login credentials for your project.</v-card-text>
               <v-card-actions>
                 <v-btn color="green darken-1" text @click="connectWallet('phantom')">Phantom</v-btn>
                 <v-btn color="green darken-1" text @click="connectWallet('solflare')">Solflare</v-btn>
@@ -247,7 +247,7 @@ export default Vue.extend({
           console.log(`wallet is connected ${res.data.publicKey}`)
           this.publicKey = res.data.publicKey
           this.signature = res.data.signature
-          this.connectWallet()
+          this.connectWallet("")
         }
       }
     } catch (e) {
