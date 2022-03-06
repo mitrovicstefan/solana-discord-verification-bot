@@ -258,7 +258,7 @@ export default Vue.extend({
           }
 
           // connect to the wallet interface
-          await wallet.connect(); 
+          await wallet.connect();
           this.step = 2
  
           // Signs message to verify authority

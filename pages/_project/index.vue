@@ -61,6 +61,8 @@
 <script lang="ts">
 import Vue from 'vue'
 import axios from 'axios'
+import Solflare from '@solflare-wallet/sdk';
+const { binary_to_base58 } = require('base58-js')
 
 export default Vue.extend({
   data() {
@@ -114,10 +116,18 @@ export default Vue.extend({
     this.discordAvatar = `https://cdn.discordapp.com/avatars/${res.data.id}/${res.data.avatar}.png`
     this.step = 3
 
-    // Connects to phantom
-    let connection
+    // determine the type of wallet
+    let wallet 
+    if (window.solana.isPhantom) {
+      // connect to phantom wallet
+      wallet = window.solana
+    } else {
+      // connect to solflare wallet
+      wallet = new Solflare();
+    }
+    
     try {
-      connection = await window.solana.connect()
+      await wallet.connect();
     } catch (e) {
       console.log(e)
       this.step = 10
@@ -127,10 +137,11 @@ export default Vue.extend({
     this.step = 4
 
     try {
+
       // Signs message to verify authority
       const message = projectConfig.data.message
       const encodedMessage = new TextEncoder().encode(message)
-      const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
+      const signedMessage = await wallet.signMessage(encodedMessage, 'utf8')
 
       // Sends signature to the backend
       let res2
@@ -139,9 +150,9 @@ export default Vue.extend({
         res2 = await axios.post('/api/logHodlers', {
           projectName: projectName,
           discordName: this.discordUsername,
-          signature: signedMessage.signature,
+          signature: binary_to_base58((signedMessage.signature)?signedMessage.signature:signedMessage),
           // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
-          publicKey: connection.publicKey.toString()
+          publicKey: wallet.publicKey.toString()
         })
         console.log(`validated roled status ${res2.status} with roles ${JSON.stringify(res2.data)}`)
         if (res2.status == 200) {
