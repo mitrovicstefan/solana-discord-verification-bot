@@ -9,7 +9,32 @@
           Your NFT project tools are associated with your Solana wallet address. Connect your wallet to access the project management console.
         </div>
         <div class="block text-gray-700 text-sm mb-5">
-          <v-btn color="primary" @click="connectWallet">Connect Wallet</v-btn>
+          <v-dialog
+            v-model="dialog"
+            persistent
+            max-width="290"
+          >
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                color="primary"
+                dark
+                v-bind="attrs"
+                v-on="on"
+              >
+                Connect Wallet
+              </v-btn>
+            </template>
+            <v-card>
+              <v-card-title class="text-h5">
+                Choose a Wallet
+              </v-card-title>
+              <v-card-text>The wallet will be used as login credentials for your project.</v-card-text>
+              <v-card-actions>
+                <v-btn color="green darken-1" text @click="connectWallet('phantom')">Phantom</v-btn>
+                <v-btn color="green darken-1" text @click="connectWallet('solflare')">Solflare</v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-dialog>
         </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Show me how to do it</h2>
         <div class="block text-gray-700 text-sm mb-5">
@@ -118,7 +143,7 @@
         </div>
     </div>
     <div class="block text-gray-700 text-sm" v-if="step === 11">
-      We're having trouble connecting to your wallet. The currently supported wallet configuration is <a class="hyperlink" href="https://phantom.app/">Phantom</a> with browser extension on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
+      We're having trouble connecting to your wallet. The currently supported wallet configurations are <a class="hyperlink" href="https://phantom.app">Phantom</a> and <a class="hyperlink" href="https://solflare.com">Solflare</a> browser extensions on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
       <br>
       <br>
       Please ensure Phantom is available on your device and try again.
@@ -174,6 +199,8 @@
 <script lang="ts">
 import Vue from 'vue'
 import axios from 'axios'
+import Solflare from '@solflare-wallet/sdk';
+const { binary_to_base58 } = require('base58-js')
 
 export default Vue.extend({
   data() {
@@ -220,7 +247,7 @@ export default Vue.extend({
           console.log(`wallet is connected ${res.data.publicKey}`)
           this.publicKey = res.data.publicKey
           this.signature = res.data.signature
-          this.connectWallet()
+          this.connectWallet("")
         }
       }
     } catch (e) {
@@ -240,24 +267,33 @@ export default Vue.extend({
       }
       this.step = 1
     },
-    async connectWallet() {
+    async connectWallet(walletType:string) {
       
       if (!this.signature || !this.publicKey) {
-        // Connects to phantom 
-        let connection
         try {
 
-          // connect to solana wallet
-          connection = await window.solana.connect() 
-          this.step = 2
+          // determine the type of wallet
+          let wallet 
+          if (walletType == "phantom") {
+            // connect to phantom wallet
+            wallet = window.solana
+          } else {
+            // connect to solflare wallet
+            wallet = new Solflare();
+          }
 
+          // connect to the wallet interface
+          await wallet.connect();
+          this.step = 2
+ 
           // Signs message to verify authority
           const message = this.$config.message
           const encodedMessage = new TextEncoder().encode(message)
-          const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-          this.signature = signedMessage.signature
+          const signedMessage = await wallet.signMessage(encodedMessage, 'utf8')
+          this.signature = binary_to_base58((signedMessage.signature)?signedMessage.signature:signedMessage)
+          console.log(`signed message ${this.signature}`)
           // @ts-ignore
-          this.publicKey = connection.publicKey.toString()
+          this.publicKey = wallet.publicKey.toString()
 
           // pre-validate the signature
           try {

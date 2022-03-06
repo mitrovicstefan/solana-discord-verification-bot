@@ -1,6 +1,7 @@
 const bodyParser = require('body-parser')
 const axios = require('axios')
 const app = require('express')()
+const { base58_to_binary } = require('base58-js')
 import { Request, Response } from 'express'
 import morganMiddleware from './logger/morgan'
 import { initializeStorage, list, read, write } from './storage/persist'
@@ -219,7 +220,7 @@ function getFieldValue(v: string) {
 function isSignatureValid(publicKeyString: string, signature: any, message: any) {
   const encodedMessage = new TextEncoder().encode(message)
   let publicKey = new PublicKey(publicKeyString).toBytes()
-  const encryptedSignature = new Uint8Array(signature.data)
+  const encryptedSignature = base58_to_binary(signature)
   return nacl.sign.detached.verify(encodedMessage, encryptedSignature, publicKey)
 }
 
@@ -657,6 +658,7 @@ app.post('/connectWallet', sessionMiddleware, (req: any, res: Response) => {
 
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
+  logger.info(`connecting wallet with public key ${publicKeyString} signature ${req.body.signature}`)
   if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
     return res.sendStatus(400)
   }

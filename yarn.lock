@@ -1505,6 +1505,14 @@
   "resolved" "https://registry.npmjs.org/@polka/url/-/url-1.0.0-next.21.tgz"
   "version" "1.0.0-next.21"
 
+"@project-serum/sol-wallet-adapter@0.2.0":
+  "integrity" "sha512-ed7wZwlDqjF88VCq7eHVO8njHqdUkBxBL8WEVOnB47ooLO4btOJt6GBdkKpKqKX86c86LiEROJclcdW8e7kIjg=="
+  "resolved" "https://registry.npmjs.org/@project-serum/sol-wallet-adapter/-/sol-wallet-adapter-0.2.0.tgz"
+  "version" "0.2.0"
+  dependencies:
+    "bs58" "^4.0.1"
+    "eventemitter3" "^4.0.4"
+
 "@sapphire/async-queue@^1.1.9":
   "integrity" "sha512-O5ND5Ljpef86X5oy8zXorQ754TMjWALcPSAgPBu4+76HLtDTrNoDyzU2uGE2G4A8Wv51u0MXHzGQ0WZ4GMtpIw=="
   "resolved" "https://registry.npmjs.org/@sapphire/async-queue/-/async-queue-1.2.0.tgz"
@@ -1553,7 +1561,7 @@
     "buffer-layout" "^1.2.0"
     "dotenv" "10.0.0"
 
-"@solana/web3.js@^1.12.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.30.2", "@solana/web3.js@^1.31.0":
+"@solana/web3.js@^1.12.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.30.2", "@solana/web3.js@^1.31.0", "@solana/web3.js@^1.5.0":
   "integrity" "sha512-eKf2rPoWEyVq7QsgAQKNqxODvPsb0vqSwwg2xRY1e49Fn5Qh29m2FiLcYHRS/xhPu/7b/5gsD+RzO3BWozOeZQ=="
   "resolved" "https://registry.npmjs.org/@solana/web3.js/-/web3.js-1.35.0.tgz"
   "version" "1.35.0"
@@ -1572,6 +1580,16 @@
     "secp256k1" "^4.0.2"
     "superstruct" "^0.14.2"
     "tweetnacl" "^1.0.0"
+
+"@solflare-wallet/sdk@^1.0.11":
+  "integrity" "sha512-zm+snfxpxfEvPytz0CdPn+LSMLrtYIl8qDjC2jhey4hWTkkZmumgKMKfNb9w6cpHtGgWiQkxSP2KI48xuKmuxw=="
+  "resolved" "https://registry.npmjs.org/@solflare-wallet/sdk/-/sdk-1.0.11.tgz"
+  "version" "1.0.11"
+  dependencies:
+    "@project-serum/sol-wallet-adapter" "0.2.0"
+    "bs58" "^4.0.1"
+    "eventemitter3" "^4.0.7"
+    "uuid" "^8.3.2"
 
 "@types/anymatch@*":
   "integrity" "sha512-qLChUo6yhpQ9k905NwL74GU7TxH+9UODwwQ6ICNI+O6EDMExqH/Cv9NsbmcZ7yC/rRXJ/AHCzfgjsFRY5fKjYw=="
@@ -2615,6 +2633,11 @@
     "isobject" "^3.0.1"
     "mixin-deep" "^1.2.0"
     "pascalcase" "^0.1.1"
+
+"base58-js@^1.0.0":
+  "integrity" "sha512-izVZ4M54gJYRk7VGsiRatRyUVCUaUDF15earKs3u9sUXlawvTwttC9xitGk8Xzlgib5rDL71WPOe4JsyJu9Scg=="
+  "resolved" "https://registry.npmjs.org/base58-js/-/base58-js-1.0.0.tgz"
+  "version" "1.0.0"
 
 "base64-js@^1.0.2", "base64-js@^1.3.1":
   "integrity" "sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA=="
@@ -4659,7 +4682,7 @@
   "resolved" "https://registry.npmjs.org/etag/-/etag-1.8.1.tgz"
   "version" "1.8.1"
 
-"eventemitter3@^4.0.0", "eventemitter3@^4.0.7":
+"eventemitter3@^4.0.0", "eventemitter3@^4.0.4", "eventemitter3@^4.0.7":
   "integrity" "sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw=="
   "resolved" "https://registry.npmjs.org/eventemitter3/-/eventemitter3-4.0.7.tgz"
   "version" "4.0.7"
