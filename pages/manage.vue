@@ -9,7 +9,32 @@
           Your NFT project tools are associated with your Solana wallet address. Connect your wallet to access the project management console.
         </div>
         <div class="block text-gray-700 text-sm mb-5">
-          <v-btn color="primary" @click="connectWallet">Connect Wallet</v-btn>
+          <v-dialog
+            v-model="dialog"
+            persistent
+            max-width="290"
+          >
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                color="primary"
+                dark
+                v-bind="attrs"
+                v-on="on"
+              >
+                Connect Wallet
+              </v-btn>
+            </template>
+            <v-card>
+              <v-card-title class="text-h5">
+                Choose a Wallet
+              </v-card-title>
+              <v-card-text>The wallet will inspected to verify the project's NFT requirements.</v-card-text>
+              <v-card-actions>
+                <v-btn color="green darken-1" text @click="connectWallet('phantom')">Phantom</v-btn>
+                <v-btn color="green darken-1" text @click="connectWallet('solflare')">Solflare</v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-dialog>
         </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Show me how to do it</h2>
         <div class="block text-gray-700 text-sm mb-5">
@@ -242,14 +267,14 @@ export default Vue.extend({
       }
       this.step = 1
     },
-    async connectWallet() {
+    async connectWallet(walletType:string) {
       
       if (!this.signature || !this.publicKey) {
         try {
 
           // determine the type of wallet
           let wallet 
-          if (window.solana.isPhantom) {
+          if (walletType == "phantom") {
             // connect to phantom wallet
             wallet = window.solana
           } else {
