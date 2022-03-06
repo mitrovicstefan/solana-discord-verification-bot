@@ -118,7 +118,7 @@
         </div>
     </div>
     <div class="block text-gray-700 text-sm" v-if="step === 11">
-      We're having trouble connecting to your wallet. The currently supported wallet configuration is <a class="hyperlink" href="https://phantom.app/">Phantom</a> with browser extension on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
+      We're having trouble connecting to your wallet. The currently supported wallet configurations are <a class="hyperlink" href="https://phantom.app">Phantom</a> and <a class="hyperlink" href="https://solflare.com">Solflare</a> browser extensions on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
       <br>
       <br>
       Please ensure Phantom is available on your device and try again.
