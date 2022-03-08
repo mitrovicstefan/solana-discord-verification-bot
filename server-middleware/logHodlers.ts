@@ -84,22 +84,25 @@ async function getDiscordClient(projectName: any) {
     newClient.login(config.discord_bot_token);
 
     // wait for client to be ready
-    logger.info("waiting for client to initialize")
+    logger.info(`waiting for ${projectName} client to initialize`)
     for (var i = 0; i < 10; i++) {
       if (await newClient.guilds.cache.get(config.discord_server_id)) {
-        logger.info("client is ready!")
-        break
+        logger.info(`${projectName} client is ready!`)
+
+        // store the global config
+        logger.info(`adding new discord client: ${projectName}`)
+        discordClients.set(projectName, newClient)
+        return newClient
       }
       await new Promise(r => setTimeout(r, 500));
     }
   } catch (e) {
-    logger.info("error logging into client", e)
+    logger.info(`error logging into ${projectName} client`, e)
   }
 
-  // store the global config
-  logger.info(`adding new discord client: ${projectName}`)
-  discordClients.set(projectName, newClient)
-  return newClient
+  // getting here means an error
+  logger.info(`client ${projectName} was not initialized`)
+  return null
 }
 
 // Query project list and retrieve all discord clients
@@ -114,7 +117,7 @@ async function getAllDiscordClients() {
         logger.info(`initializing client: ${allProjects[i]}`)
         await getDiscordClient(allProjects[i])
       } catch (e1) {
-        logger.info("error loading project", e1)
+        logger.info(`error loading client for project ${allProjects[i]}`, e1)
       }
     }
   } catch (e) {
@@ -236,6 +239,7 @@ function getFieldValue(v: string) {
 
 // validates signature of a given message
 function isSignatureValid(publicKeyString: string, signature: any, message: any) {
+  logger.info(`validating signagure ${signature} for public key ${publicKeyString}`)
   const encodedMessage = new TextEncoder().encode(message)
   let publicKey = new PublicKey(publicKeyString).toBytes()
   const encryptedSignature = base58_to_binary(signature)
@@ -683,6 +687,7 @@ app.post('/connectWallet', sessionMiddleware, (req: any, res: Response) => {
   var publicKeyString = req.body.publicKey
   logger.info(`connecting wallet with public key ${publicKeyString} signature ${req.body.signature}`)
   if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
     return res.sendStatus(400)
   }
 
@@ -837,6 +842,7 @@ app.post('/createProject', async (req: any, res: Response) => {
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
   if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
     return res.sendStatus(400)
   }
 
@@ -941,6 +947,7 @@ app.post('/updateProject', async (req: any, res: Response) => {
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
   if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
     return res.sendStatus(400)
   }
 
@@ -1065,6 +1072,7 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
   // Validates signature sent from client
   var publicKeyString = req.body.publicKey
   if (!isSignatureValid(publicKeyString, req.body.signature, config.message)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
     return res.sendStatus(400)
   }
 
