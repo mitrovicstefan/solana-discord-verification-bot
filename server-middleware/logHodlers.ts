@@ -20,6 +20,11 @@ const loggerWithLabel = require('./logger/structured')
 const logger = loggerWithLabel("logHodlers")
 
 /**
+ * Create HTTP client with 20 second timeout
+ */
+const defaultHttpTimeout = 20000
+
+/**
  * Configure session management for select endpoints
  */
 const sessionMiddleware = require('express-session')({
@@ -33,7 +38,7 @@ const sessionMiddleware = require('express-session')({
 })
 
 /**
- * Configure the Discord client
+ * Configure the Discord clients
  */
 
 // Cache of discord clients available on this server
@@ -97,11 +102,36 @@ async function getDiscordClient(projectName: any) {
   return newClient
 }
 
+// Query project list and retrieve all discord clients
+async function getAllDiscordClients() {
+  logger.info("loading all projects to initialize discord clients")
+  try {
+    cronDiscordClientRunning = true
+    var allProjects = await getAllProjects()
+    logger.info("retrieved projects", allProjects.length)
+    for (var i = 0; i < allProjects.length; i++) {
+      try {
+        logger.info(`initializing client: ${allProjects[i]}`)
+        await getDiscordClient(allProjects[i])
+      } catch (e1) {
+        logger.info("error loading project", e1)
+      }
+    }
+  } catch (e) {
+    logger.info("error retrieving projects", e)
+  }
+  cronDiscordClientRunning = false
+}
+
 /**
  * Configure storage layer
  */
 initializeStorage()
 
+/**
+ * Retrieve discord clients at server startup
+ */
+getAllDiscordClients()
 
 /**
  * Background jobs
@@ -122,19 +152,7 @@ cron.schedule('*/5 * * * *', async function () {
       logger.info("client initialization is already running")
       return
     }
-
-    logger.info("loading all projects to initialize discord clients")
-    cronDiscordClientRunning = true
-    var allProjects = await getAllProjects()
-    logger.info("retrieved projects", allProjects.length)
-    for (var i = 0; i < allProjects.length; i++) {
-      try {
-        logger.info(`initializing client: ${allProjects[i]}`)
-        await getDiscordClient(allProjects[i])
-      } catch (e1) {
-        logger.info("error loading project", e1)
-      }
-    }
+    await getAllDiscordClients()
   } catch (e2) {
     logger.info("error retrieving project list", e2)
   }
@@ -275,6 +293,7 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
     url: `https://api.mainnet-beta.solana.com`,
     method: "post",
     headers: { "Content-Type": "application/json" },
+    timeout: defaultHttpTimeout,
     data: {
       jsonrpc: "2.0",
       id: 1,
@@ -309,7 +328,11 @@ const getTokenBalance = async (walletAddress: any, tokenMintAddress: any) => {
 
 const getTokenAttributes = async (uri: any) => {
   try {
-    const response = await axios({ url: uri, method: "get" })
+    const response = await axios({
+      url: uri,
+      method: "get",
+      timeout: defaultHttpTimeout,
+    })
     return response.data.attributes
   } catch (e) {
     logger.info("error getting token attributes", e)
@@ -752,15 +775,9 @@ app.get('/getProjects', async (req: Request, res: Response) => {
   }
   for (const project of discordClients.keys()) {
     try {
-      var config = await getConfig(project)
-      var projectSales: any = {}
-      try {
-        projectSales = JSON.parse(await read(getSalesFilePath(config.update_authority)))
-      } catch (e2) {
-        logger.info("error parsing sales file", e2)
-      }
 
-      // skip if not yet any verifications
+      // get config and skip if not yet any verifications
+      var config = await getConfig(project)
       if (!req.query["all"] && config.verifications < 2) {
         continue
       }
@@ -776,7 +793,7 @@ app.get('/getProjects', async (req: Request, res: Response) => {
         connected_twitter_name: config.connected_twitter_name,
         is_holder: config.is_holder,
         verifications: config.verifications,
-        sales: (projectSales.sales) ? projectSales.sales.length : 0
+        sales: (config.sales) ? config.sales : 0
       }
       projectData.push(data)
       if (config.is_holder) {
