@@ -79,11 +79,12 @@
           <input class="mb-1 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="password" v-model="discord_bot_token" placeholder="Discord bot token">
         </div>
         <div class="mb-4">
-          <h2 class="block text-gray-700 text-sm font-bold mb-2">Trait based role assignments (optional)</h2>
+          <h2 class="block text-gray-700 text-sm font-bold mb-2">Trait / count based role assignments (optional)</h2>
           <div class="form-group" v-for="(discord_role,k) in discord_roles" :key="k">
             <input class="mb-1 shadow appearance-none border rounded w-3/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.key" placeholder="Metadata key">
             <input class="mb-1 shadow appearance-none border rounded w-3/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.value" placeholder="Metadata value">
-            <input class="mb-1 shadow appearance-none border rounded w-4/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.discord_role_id" placeholder="Discord role ID">
+            <input class="mb-1 shadow appearance-none border rounded w-3/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.discord_role_id" placeholder="Discord role ID">
+            <input class="mb-1 shadow appearance-none border rounded w-1/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.required_balance" placeholder="#">
             <span>
               <a href="#" @click="remove(k)" v-show="k || ( !k && discord_roles.length > 1)">➖</a>
               <a href="#" @click="add(k)" v-show="k == discord_roles.length-1">➕</a>
@@ -160,10 +161,10 @@
           🚫 Quota remaining: {{discord_remaining_verifications}} (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
         <div v-if="this.is_holder" class="block text-gray-700 text-sm">
-          ✅ Trait based role assignments
+          ✅ Trait / count based role assignments
         </div>
         <div v-if="!this.is_holder" class="block text-gray-700 text-sm">
-          🚫 Trait based role assignments (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
+          🚫 Trait / count based role assignments (<a class="hyperlink" href="https://mint.nft4cause.app">unlock</a>)
         </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Sales Tracking</h2>
         <div class="block text-sm mb-2"> 
@@ -231,7 +232,7 @@ export default Vue.extend({
       connected_twitter_name: '',
       discord_roles: [{
         discord_role_id: '',
-        required_balance: 1,
+        required_balance: '',
         key: '',
         value: ''
       }]
@@ -358,7 +359,7 @@ export default Vue.extend({
     add () {
       this.discord_roles.push({
         discord_role_id: '',
-        required_balance: 1,
+        required_balance: '',
         key: '',
         value: ''
       })
