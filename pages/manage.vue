@@ -84,6 +84,7 @@
             <input class="mb-1 shadow appearance-none border rounded w-3/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.key" placeholder="Metadata key">
             <input class="mb-1 shadow appearance-none border rounded w-3/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.value" placeholder="Metadata value">
             <input class="mb-1 shadow appearance-none border rounded w-4/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.discord_role_id" placeholder="Discord role ID">
+            <input class="mb-1 shadow appearance-none border rounded w-1/12 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" v-model="discord_role.required_balance" placeholder="#">
             <span>
               <a href="#" @click="remove(k)" v-show="k || ( !k && discord_roles.length > 1)">➖</a>
               <a href="#" @click="add(k)" v-show="k == discord_roles.length-1">➕</a>

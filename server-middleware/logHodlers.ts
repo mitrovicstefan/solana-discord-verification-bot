@@ -400,7 +400,7 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
     var projectRole = projectRoles[i]
     var roleVerified = false
 
-    // stop if SPL token requirement is not met
+    // validate on SPL balance if specified
     if (projectRole.splBalance > 0) {
       var splBalance = wallet.splBalance || 0
       if (splBalance >= projectRole.splBalance) {
@@ -422,10 +422,11 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
             if (walletNFT?.attributes) {
               for (var k = 0; k < walletNFT.attributes.length; k++) {
                 var walletNFTAttribute = walletNFT.attributes[k]
-                if (requiredAttribute.key == walletNFTAttribute.trait_type) {
-                  if (requiredAttribute.value == walletNFTAttribute.value) {
+                if ([walletNFTAttribute.trait_type, "*"].includes(requiredAttribute.key)) {
+                  if ([walletNFTAttribute.value, "*"].includes(requiredAttribute.value)) {
                     logger.info(`wallet ${walletAddress} matches requirement ${JSON.stringify(requiredAttribute)}`)
                     matchingNFTCount++
+                    break
                   }
                 }
               }
@@ -434,9 +435,9 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
         })
       }
 
-      // stop if the matching NFT requirement is not met
+      // verify the required number of NFT matches has been met
       if (matchingNFTCount >= projectRole.nftBalance) {
-        logger.info(`wallet ${walletAddress} validated for role ${projectRole.roleID} via matching NFT count`)
+        logger.info(`wallet ${walletAddress} validated for role ${projectRole.roleID} via matching NFT count. Required=${projectRole.nftBalance}, found=${matchingNFTCount}`)
         roleVerified = true
       }
     }
