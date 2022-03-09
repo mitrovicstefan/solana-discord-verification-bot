@@ -915,6 +915,9 @@ app.post('/createProject', async (req: any, res: Response) => {
     var roles: any[] = []
     req.body.discord_roles.forEach((role: any) => {
       if (role.key != "" && role.value != "" && role.discord_role_id != "") {
+        if (role.required_balance == "") {
+          role.required_balance = 1
+        }
         roles.push(role)
       }
     })
@@ -1035,6 +1038,9 @@ app.post('/updateProject', async (req: any, res: Response) => {
     var roles: any[] = []
     req.body.discord_roles.forEach((role: any) => {
       if (role.key != "" && role.value != "" && role.discord_role_id != "") {
+        if (role.required_balance == "") {
+          role.required_balance = 1
+        }
         roles.push(role)
       }
     })
