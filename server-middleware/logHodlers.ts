@@ -58,26 +58,28 @@ async function getDiscordClient(projectName: any) {
   // get the config
   var config = await getConfig(projectName)
 
-  // Create a new client instance
+  // create a new client instance
   let allIntents = new Intents()
   allIntents.add(Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_PRESENCES, Intents.FLAGS.GUILD_MESSAGES)
   const newClient = new Client({ intents: allIntents });
 
-  // add the verify command
-  let prefix = "!";
-  let redirect_url = config.discord_redirect_url;
-  newClient.on("messageCreate", (message: { content: { startsWith: (prefix: string) => boolean }, channel: any, author: any, }) => {
+  // listen for bot commands if enabled
+  if (process.env.ENABLE_BOT_COMMANDS) {
+    let prefix = "!";
+    let redirect_url = config.discord_redirect_url;
+    newClient.on("messageCreate", (message: { content: { startsWith: (prefix: string) => boolean }, channel: any, author: any, }) => {
 
-    // Exit and stop if the prefix is not there or if user is a bot
-    if (!message.content.startsWith(prefix) || message.author.bot) return;
+      // Exit and stop if the prefix is not there or if user is a bot
+      if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-    // only process !verify commands
-    if (message.content.startsWith(`${prefix}verify`)) {
+      // only process !verify commands
+      if (message.content.startsWith(`${prefix}verify`)) {
 
-      // send the verification message to user
-      message.channel.send(`Hi ${message.author}! Visit ${redirect_url} to gain your special NFT holder role.`);
-    }
-  });
+        // send the verification message to user
+        message.channel.send(`Hi ${message.author}! Visit ${redirect_url} to gain your special NFT holder role.`);
+      }
+    });
+  }
 
   try {
     // login to the client
@@ -572,7 +574,7 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
 const reloadHolders = async (project: any) => {
 
   // raed only made flag to log destructive changes but not write them
-  var readOnly = true
+  var readOnly = process.env.DISABLE_REMOVE_ROLES
 
   // retrieve config and ensure it is valid
   const config = await getConfig(project)
@@ -710,6 +712,7 @@ const reloadHolders = async (project: any) => {
 
   // update the hodler file and return successfully
   if (!readOnly) {
+    logger.info(`updating ${project} holder list with ${updatedHodlerList.length} users`)
     await write(getHodlerFilePath(project), JSON.stringify(updatedHodlerList))
   }
 
