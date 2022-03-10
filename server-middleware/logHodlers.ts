@@ -20,9 +20,9 @@ const loggerWithLabel = require('./logger/structured')
 const logger = loggerWithLabel("logHodlers")
 
 /**
- * Create HTTP client with 20 second timeout
+ * Create HTTP client with 60 second timeout
  */
-const defaultHttpTimeout = 20000
+const defaultHttpTimeout = 60000
 
 /**
  * Configure session management for select endpoints
@@ -180,19 +180,38 @@ cron.schedule('*/30 * * * *', async function () {
       return
     }
 
+    // concurrency control
+    var maxConcurrent = 10
+    var promises = []
+
     // load projets and validate holders 
     logger.info("loading all projects for holder revalidation")
     cronHodlerValidationRunning = true
     var allProjects = await getAllProjects()
     logger.info("retrieved projects", allProjects.length)
     for (var i = 0; i < allProjects.length; i++) {
-      try {
-        logger.info(`validating project holders: ${allProjects[i]}`)
-        await reloadHolders(allProjects[i])
-      } catch (e1) {
-        logger.info("error loading project", e1)
+
+      // schedule to the concurrent queue
+      promises.push(async function () {
+        try {
+          logger.info(`validating project holders: ${allProjects[i]}`)
+          await reloadHolders(allProjects[i])
+        } catch (e1) {
+          logger.info(`error reloading project ${allProjects[i]}`, e1)
+        }
+      }())
+
+      // throttle concurrency
+      if (promises.length == maxConcurrent) {
+        logger.info(`waiting for ${promises.length} projects to complete`)
+        await Promise.all(promises)
+        promises = []
       }
     }
+
+    // wait for queue to complete
+    logger.info(`waiting for ${promises.length} remaining projects to complete`)
+    await Promise.all(promises)
   } catch (e2) {
     logger.info("error retrieving project list", e2)
   }
@@ -339,9 +358,9 @@ const getTokenAttributes = async (uri: any) => {
     })
     return response.data.attributes
   } catch (e) {
-    logger.info("error getting token attributes", e)
+    logger.info(`error getting token attributes on ${uri}`, e)
   }
-  return []
+  return [{ "trait_type": "trait_type_default", "value": "trait_type_value" }]
 }
 
 // determines the list of roles required by a project
@@ -391,6 +410,7 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
   var startTime = Date.now()
   var projectRoles = await getRequiredRoles(config)
   var userRoleMap = new Map<any, boolean>()
+  logger.info(`checking wallet ${walletAddress} roles against project roles ${JSON.stringify(projectRoles)}`)
 
   // determine if the wallet is valid for each role
   var wallet = await getHodlerWallet(walletAddress, config)
@@ -464,53 +484,84 @@ const getHodlerRoles = async (walletAddress: string, config: any) => {
 // specified in the config map
 const getHodlerWallet = async (walletAddress: string, config: any) => {
 
-  // Parses all tokens from the requested wallet address public key
-  let tokenList
-  try {
-    tokenList = await getParsedNftAccountsByOwner({ publicAddress: walletAddress })
-  } catch (e) {
-    logger.info("Error parsing NFTs", e)
-  }
-
-  // determine list of valid update authorities
-  var updateAuthorityList = [config.update_authority]
-  var splTokenList: any[] = []
-  if (config.spl_token) {
-    splTokenList = config.spl_token.split(",")
-    splTokenList.forEach((ua: any) => {
-      updateAuthorityList.push(ua)
-    })
-  }
-
   // initialize an empty wallet to be returned
   let nfts: any[] = [];
   let wallet = {
     nfts: nfts,
     splBalance: 0
   }
-  for (let item of tokenList) {
-    if (updateAuthorityList.includes(item.updateAuthority)) {
-      logger.info(`wallet ${walletAddress} item ${item.mint} matches an expected update authority (${JSON.stringify(updateAuthorityList)})`)
-      if (config.roles && config.roles.length > 0 && config.is_holder) {
-        logger.info(`retrieving token metadata for ${item.mint}`)
-        item.attributes = await getTokenAttributes(item.data.uri)
-      } else {
-        logger.info(`skipping wallet ${walletAddress} token metadata for ${item.mint}`)
-      }
-      wallet.nfts.push(item)
-    }
-  }
 
-  // if specified in the config, check for SPL token balance
-  if (splTokenList) {
-    for (var i = 0; i < splTokenList.length; i++) {
-      try {
-        wallet.splBalance = await getTokenBalance(walletAddress, splTokenList[i])
-        logger.info(`wallet ${walletAddress} spl token ${splTokenList[i]} balance: ${wallet.splBalance}`)
-      } catch (e) {
-        logger.info("Error getting spl token balance", e)
+  try {
+
+    // Parses all tokens from the requested wallet address public key
+    let tokenList
+    try {
+      tokenList = await getParsedNftAccountsByOwner({ publicAddress: walletAddress })
+    } catch (e) {
+      logger.info("Error parsing NFTs", e)
+    }
+
+    // determine list of valid update authorities
+    var updateAuthorityList = [config.update_authority]
+    var splTokenList: any[] = []
+    if (config.spl_token) {
+      splTokenList = config.spl_token.split(",")
+      splTokenList.forEach((ua: any) => {
+        updateAuthorityList.push(ua)
+      })
+    }
+
+    // populate the items in the wallet
+    if (tokenList) {
+
+      // concurrency control
+      var maxConcurrent = 25
+      var promises = []
+
+      // iterate the available tokens for this wallet
+      for (let item of tokenList) {
+        if (updateAuthorityList.includes(item.updateAuthority)) {
+
+          // schedule to the concurrent queue
+          promises.push(async function () {
+            logger.info(`wallet ${walletAddress} item ${item.mint} matches an expected update authority (${JSON.stringify(updateAuthorityList)})`)
+            if (config.roles && config.roles.length > 0 && config.is_holder) {
+              logger.info(`wallet ${walletAddress} retrieving token metadata for ${item.mint}`)
+              item.attributes = await getTokenAttributes(item.data.uri)
+            } else {
+              logger.info(`skipping wallet ${walletAddress} token metadata for ${item.mint}`)
+            }
+            logger.info(`wallet ${walletAddress} adding item to wallet ${JSON.stringify(item)}`)
+            wallet.nfts.push(item)
+          }())
+
+          // throttle concurrency
+          if (promises.length == maxConcurrent) {
+            logger.info(`wallet ${walletAddress} waiting for ${promises.length} NFTs to complete processing`)
+            await Promise.all(promises)
+            promises = []
+          }
+        }
+      }
+
+      // wait for queue to complete
+      logger.info(`wallet ${walletAddress} waiting for ${promises.length} remaining NFTs to complete processing`)
+      await Promise.all(promises)
+    }
+
+    // if specified in the config, check for SPL token balance
+    if (splTokenList) {
+      for (var i = 0; i < splTokenList.length; i++) {
+        try {
+          wallet.splBalance = await getTokenBalance(walletAddress, splTokenList[i])
+          logger.info(`wallet ${walletAddress} spl token ${splTokenList[i]} balance: ${wallet.splBalance}`)
+        } catch (e) {
+          logger.info("Error getting spl token balance", e)
+        }
       }
     }
+  } catch (walletErr) {
+    logger.info(`error building wallet ${walletAddress}`, walletErr)
   }
 
   // convert to wallet struct and return
@@ -519,6 +570,9 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
 
 // validates the current holders are still in good standing
 const reloadHolders = async (project: any) => {
+
+  // raed only made flag to log destructive changes but not write them
+  var readOnly = true
 
   // retrieve config and ensure it is valid
   const config = await getConfig(project)
@@ -537,6 +591,7 @@ const reloadHolders = async (project: any) => {
   }
 
   // retrieve discord client
+  var startTime = Date.now()
   const client = await getDiscordClient(project)
   if (!client) {
     return 400
@@ -547,93 +602,105 @@ const reloadHolders = async (project: any) => {
   var hodlerList = await getHodlerList(project)
   for (let n in hodlerList) {
 
-    // determine currently held roles
+    // the holder to revalidate
     const holder = hodlerList[n]
-    var verifiedRoles = await getHodlerRoles(holder.publicKey, config)
 
-    // determine roles to add
-    var rolesToAdd: any[] = []
-    verifiedRoles.forEach(verifiedRole => {
-      var foundRole = false
-      if (holder.roles) {
-        holder.roles.forEach((holderRole: any) => {
-          if (holderRole == verifiedRole) {
-            foundRole = true
-          }
-        })
-      }
-      if (!foundRole) {
-        rolesToAdd.push(verifiedRole)
-      }
-    })
+    try {
 
-    // determine roles to remove
-    var rolesToRemove: any[] = []
-    if (holder.roles) {
-      holder.roles.forEach((holderRole: any) => {
+      // determine currently held roles
+      var verifiedRoles = await getHodlerRoles(holder.publicKey, config)
+
+      // determine roles to add
+      var rolesToAdd: any[] = []
+      verifiedRoles.forEach(verifiedRole => {
         var foundRole = false
-        verifiedRoles.forEach(verifiedRole => {
-          if (holderRole == verifiedRole) {
-            foundRole = true
-          }
-        })
+        if (holder.roles) {
+          holder.roles.forEach((holderRole: any) => {
+            if (holderRole == verifiedRole) {
+              foundRole = true
+            }
+          })
+        }
         if (!foundRole) {
-          rolesToRemove.push(holderRole)
+          rolesToAdd.push(verifiedRole)
         }
       })
-    }
 
-    // update the user's roles
-    if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
-
-      // audit log for what changes are going to be made
-      logger.info(`wallet ${holder.publicKey} updating roles, add=${JSON.stringify(rolesToAdd)}, remove=${JSON.stringify(rolesToRemove)}`)
-
-      // parse the discord address to remove
-      hodlerList.splice(n, 1)
-      const username = holder.discordName.split('#')[0]
-      const discriminator = holder.discordName.split('#')[1]
-
-      // retrieve server and user records from discord
-      const myGuild = await client.guilds.cache.get(config.discord_server_id)
-      if (!myGuild) {
-        logger.info("error retrieving server information")
-        return 500
-      }
-      const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
-      if (!doer) {
-        logger.info("error retrieving user information")
-        return 500
+      // determine roles to remove
+      var rolesToRemove: any[] = []
+      if (holder.roles) {
+        holder.roles.forEach((holderRole: any) => {
+          var foundRole = false
+          verifiedRoles.forEach(verifiedRole => {
+            if (holderRole == verifiedRole) {
+              foundRole = true
+            }
+          })
+          if (!foundRole) {
+            rolesToRemove.push(holderRole)
+          }
+        })
       }
 
-      // remove the roles that are no longer valid
-      for (var i = 0; i < rolesToRemove.length; i++) {
-        const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToRemove[i])
-        if (!role) {
-          logger.info("error retrieving role information")
-          continue
+      // update the user's roles
+      if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
+
+        // audit log for what changes are going to be made
+        logger.info(`wallet ${holder.publicKey} updating roles, add=${JSON.stringify(rolesToAdd)}, remove=${JSON.stringify(rolesToRemove)}`)
+
+        // parse the discord address to remove
+        hodlerList.splice(n, 1)
+        const username = holder.discordName.split('#')[0]
+        const discriminator = holder.discordName.split('#')[1]
+
+        // retrieve server and user records from discord
+        const myGuild = await client.guilds.cache.get(config.discord_server_id)
+        if (!myGuild) {
+          logger.info(`wallet ${holder.publicKey} error retrieving server information`)
+          return 500
         }
-        logger.info(`wallet ${holder.publicKey} removing role ${rolesToRemove[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
-        await doer.roles.remove(role)
-      }
-
-      // add the roles that are missing
-      for (var i = 0; i < rolesToAdd.length; i++) {
-        const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToAdd[i])
-        if (!role) {
-          logger.info("error retrieving role information")
-          continue
+        const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
+        if (!doer) {
+          logger.info(`wallet ${holder.publicKey} error retrieving user information`)
+          return 500
         }
-        logger.info(`wallet ${holder.publicKey} adding role ${rolesToAdd[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
-        await doer.roles.add(role)
-      }
-    }
 
-    // update the holder list to include only the verified roles. If there are not any
-    // verified roles then do not include the holder in the updated list at all.
-    if (verifiedRoles.length > 0) {
-      holder.roles = verifiedRoles
-      updatedHodlerList.push(holder)
+        // remove the roles that are no longer valid
+        for (var i = 0; i < rolesToRemove.length; i++) {
+          const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToRemove[i])
+          if (!role) {
+            logger.info(`wallet ${holder.publicKey} error retrieving role information ${JSON.stringify(rolesToRemove[i])}`)
+            continue
+          }
+          logger.info(`wallet ${holder.publicKey} removing role ${rolesToRemove[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
+          if (!readOnly) {
+            await doer.roles.remove(role)
+          }
+        }
+
+        // add the roles that are missing
+        for (var i = 0; i < rolesToAdd.length; i++) {
+          const role = await myGuild.roles.cache.find((r: any) => r.id === rolesToAdd[i])
+          if (!role) {
+            logger.info(`wallet ${holder.publicKey} error retrieving role information`)
+            continue
+          }
+          logger.info(`wallet ${holder.publicKey} adding role ${rolesToAdd[i]} from ${holder.discordName} on server ${config.discord_server_id}`)
+          await doer.roles.add(role)
+        }
+      }
+
+      // update the holder list to include only the verified roles. If there are not any
+      // verified roles then do not include the holder in the updated list at all.
+      if (verifiedRoles.length > 0) {
+        logger.info(`updating holder list for ${holder.publicKey} with verified roles ${JSON.stringify(verifiedRoles)}`)
+        holder.roles = verifiedRoles
+        updatedHodlerList.push(holder)
+      } else {
+        logger.info(`holder no longer has any roles ${holder.publicKey}`)
+      }
+    } catch (holderErr) {
+      logger.info(`error revalidating holder ${JSON.stringify(holder)}`, holderErr)
     }
   }
 
@@ -642,7 +709,13 @@ const reloadHolders = async (project: any) => {
   await write(getConfigFilePath(project), JSON.stringify(config))
 
   // update the hodler file and return successfully
-  await write(getHodlerFilePath(project), JSON.stringify(updatedHodlerList))
+  if (!readOnly) {
+    await write(getHodlerFilePath(project), JSON.stringify(updatedHodlerList))
+  }
+
+  // write elapsed time and continue
+  var reloadElapsed = Date.now() - startTime
+  logger.info(`reloaded roles for ${project} in ${reloadElapsed}ms`)
   return 200
 }
 
@@ -1093,10 +1166,12 @@ app.post('/logHodlers', async (req: Request, res: Response) => {
     let hasHodler = false
     var hodlerList = await getHodlerList(req.body.projectName)
     for (let n of hodlerList) {
-      if (n.discordName === discordName) hasHodler = true
+      if (n.discordName === discordName && n.publicKey == publicKeyString) {
+        hasHodler = true
+      }
     }
     if (!hasHodler) {
-      logger.info("adding to hodler list: " + publicKeyString)
+      logger.info(`adding ${discordName} to hodler list with wallet ${publicKeyString}`)
       hodlerList.push({
         discordName: discordName,
         publicKey: publicKeyString,

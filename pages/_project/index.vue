@@ -8,7 +8,7 @@
       </div>
       <div class="block text-gray-700 text-sm mb-3" v-if="step > 2">
         <img alt="Discord profile pic" v-if="discordAvatar !== ''" class="rounded-full border-4 border-white w-20 my-0 mx-auto mb-4" :src="discordAvatar">
-        <h2 class="block text-gray-700 text-2xl font-bold mb-2">{{discordUsername}}</h2>
+        <h2 class="block text-gray-700 text-3xl font-bold mb-2">{{discordUsername}}</h2>
       </div>
       <div class="block text-gray-700 text-sm mx-auto" v-if="step === 3">
         <div class="block text-gray-700 text-sm mb-5">
@@ -50,7 +50,7 @@
         <img class="mx-auto" src="/loading.gif">
       </div>
       <div class="block text-gray-700 text-sm" v-if="step === 5">
-        You're verified! You can close this window now and flex your new discord power.
+        <v-icon>mdi-check-decagram</v-icon> You're verified! You can close this window now and flex your new discord power.
       </div>
       <div class="block text-gray-700 text-sm" v-if="step === 6">
         Unfortunately your wallet doesn't have the tokens required for validation.
@@ -73,12 +73,16 @@
       <div class="block text-gray-700 text-sm" v-if="step === 11">
         We're having trouble finding you on this Discord server. Make sure you've joined the server and verify your role again.
       </div>
-      <div class="block text-gray-700 text-sm mt-5" v-if="step > 2">
-        <h2 class="block text-gray-700 text-lg font-bold mb-2">What is NFT 4 Cause?</h2>
-        <div class="block text-gray-700 text-sm mb-2">
-        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofits. <b>Every NFT minted or traded on a secondary market is an 80% donation!</b> Everything else funds the development of tools like this to enhance the Solana community.
+      <div class="block text-gray-700 text-sm mt-10" v-if="step > 2">
+        <h2 class="block text-gray-700 text-xl font-bold mb-1">What is NFT 4 Cause?</h2>
+        <div class="block text-gray-700 text-sm mb-5">
+        At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs and <b>donate 80% of the proceeds to global nonprofits</b> chosen by our holders! Everything else funds the development of free tools like this to enhance the Solana community.
         </div>
-      </div>
+        <h2 class="block text-gray-700 text-lg font-bold mb-1">Join the #CryptoForGood conversation</h2>
+        <div>
+        Connect with us <a href="https://www.twitter.com/NFT4Cause">@NFT4Cause</a> 
+        </div>
+      </div> 
   </div>
 </template>
 
