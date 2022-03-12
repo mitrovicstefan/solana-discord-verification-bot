@@ -1,41 +1,53 @@
-# authorization-bot
+# solana-discord-verification-bot
 
-This guide is WIP. It will be upgraded as time goes on. For any questions message me on twitter [@prodenv](https://twitter.com/prodenv)
+This project enables Solana NFT project owners to assign custom Discord server roles to users holding their NFT. The Discord user navigates to a verification URL to submit their wallet for analysis, and the Discord role is immediately assigned if holding criteria is met. For any questions message me on twitter [@NFT4Cause](https://twitter.com/nft4cause).
 
+# Hosted service
+We offer this project as a free hosted service at [https://verify.4cause.app](https://verify.4cause.app). Feel free to register your project on our highly available deployment across IBM Cloud and Google Cloud.
+
+## Demonstration video
+Want to see it in action? There's a [live demo on YouTube](https://www.youtube.com/watch?v=QFRDIN4athM) showing how our hosted service can be used to verify users for any Solana NFT project and assign Discord roles to a specified server.
+
+# Deploy your own service
+Keep reading if you'd like to host this project yourself :)
 ## Prerequisites
 1. Discord knowledge
-2. Discord app and bot created and added to your server
-3. Proper .env file
-4. Mint list as .json array for your collection
-
-## Wat do with mint list
-
-Place it inside server-middleware/mint_list.json. It should just be an array of strings. Empty array is already there for you.
+1. Discord app and bot created and added to your server
+1. Proper .env file
 
 ## How to set up .env file
 I'll go over every parameter of .env.example and explain what it does and how to get it.
 Needless to say, rename .env.example to .env and update values as per instruction -
 
-### DISCORD_CLIENT_ID
-If you go to [discord applications](https://discord.com/developers/applications) you can create an app there. Once you create an app and select it you can see application ID under `General Information`. Paste it here. It's the same thing as *CLIENT ID*. Those two are interchangeable.
+### UPDATE_AUTHORITY
+Service level NFT token update authority that will grant user premium access to features.
+### SPL_TOKEN
+Additional SPL token that unlocks premium features (optional)
+### RELOAD_INTERVAL_MINUTES
+Interval at which revalidation is required for a project.
+### REVALIDATION_MODE
+Boolean value indicating if service is running in user facing mode or revalidation mode. Revalidations must be performed by standalone offline processes for performance and scaling purposes.
+### MAX_FREE_VERIFICATIONS
+Maximum number of verifications for a project with basic service.
+### MESSAGE
+The message text a user will sign to verify they own a wallet.
+### BASE_URL
+Base URL of your domain. For our hosted service this is [https://verify.4cause.app](https://verify.4cause.app).
+### PRODUCT_NAME
+Title of your service.
+### UPGRADE_URL
+URL for your mint where user's can buy upgrade service.
+### ABOUT_URL
+URL to your main project website to get information about you.
+### LOGO_URL
+Link to an image for the navigation banner.
+### TWITTER_CONSUMER_KEY
+OAUTH consumer key for connecting user's Twitter account.
+### TWITTER_CONSUMER_SECRET
+OAUTH consumer secret for connecting user's Twitter account.
 
-### DISCORD_REDIRECT_URI
-After you create your application go to OAuth2 section inside your app, there you will find redirects. Add your website here. And then you set it inside your .env
-
-### MESSAGE_TO_SIGN
-Any message here. It will be shown inside phantom when user has to sign it.
-
-### DISCORD_BOT_TOKEN
-BE CAREFUL NOT TO LEAK THIS!!!
-Go inside "Bot" section of your app. Check both of Privileged Gateway Intents, save. Reveal token and paste it here.
-Also worth mentioning that you should probably invite your bot to your server. Give at admin permissions when you invite it. Google it if you don't know how to do this.
-
-### DISCORD_SERVER_ID
-Your discord server ID.
-
-DISCORD_ROLE_ID
-ID of the role inside your discord server. [Here's how to find it](https://ozonprice.com/blog/discord-get-role-id/)
-
+### TWITTER_SESSION_SECRET
+Any string of your choosing, used to secure user session cookie.
 ### COS_CONFIG
 Configuration JSON for IBM Cloud Object Storage. If COS configuration is provided, files will be stored on IBM Cloud instead of the local filesystem.
 
@@ -55,11 +67,7 @@ If you want to use COS, use the following format but with your own data `COS_CON
 
 ## Deployment
 
-Guide soon. You can deploy it on vercel, your own server or anywhere else.
-
-## Data storage
-
-All of your hodlers will be inside hodlers.json file. Don't commit it if you don't wanna. It's for your own backup purposes.
+Our service is provisioned as a Docker container across IBM Cloud and Google Cloud for high availability. If you would like to roll your own deployment, feel free to choose your favorite cloud provider!
 
 ## Build Setup
 
