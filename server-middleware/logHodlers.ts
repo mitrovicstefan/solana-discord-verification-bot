@@ -692,12 +692,12 @@ const reloadHolders = async (project: any) => {
         const myGuild = await client.guilds.cache.get(config.discord_server_id)
         if (!myGuild) {
           logger.info(`holder ${JSON.stringify(holder)} error retrieving server information`)
-          return 500
+          continue
         }
         const doer = await myGuild.members.cache.find((member: any) => (member.user.username === username && member.user.discriminator === discriminator))
         if (!doer) {
           logger.info(`holder ${JSON.stringify(holder)} error retrieving user information`)
-          return 500
+          continue
         }
 
         // remove the roles that are no longer valid
