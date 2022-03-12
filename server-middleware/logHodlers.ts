@@ -178,6 +178,7 @@ if (process.env.REVALIDATION_MODE == "true") {
     // exit the program
     var elapsed = Date.now() - startTimestamp
     logger.info(`holder revalidation completed in ${elapsed}ms`)
+    await write(getRevalidationSuccessPath(), Date.now().toString())
     process.exit(0)
   }
 
@@ -253,6 +254,10 @@ function getSalesTrackerLockPath() {
 
 function getSalesTrackerSuccessPath() {
   return "sales-tracker-success"
+}
+
+function getRevalidationSuccessPath() {
+  return "revalidation-success"
 }
 
 // trims whitespace and strips any XSS threats
@@ -893,6 +898,9 @@ app.get('/getProjects', async (req: Request, res: Response) => {
     tracker: {
       inProgress: 0,
       lastSuccess: 0,
+    },
+    revalidation: {
+      lastSuccess: 0
     }
   }
   for (const project of discordClients.keys()) {
@@ -944,6 +952,13 @@ app.get('/getProjects', async (req: Request, res: Response) => {
   if (successFileContents && successFileContents != "") {
     var elapsedSinceLastRun = (Date.now() - new Date(parseInt(successFileContents)).getTime()) / 1000
     aggregateData.tracker.lastSuccess = elapsedSinceLastRun
+  }
+
+  // retrieve the elapsed time since last revalidation success
+  var revalidationFileContents = await read(getRevalidationSuccessPath())
+  if (revalidationFileContents && revalidationFileContents != "") {
+    var elapsedSinceLastRun = (Date.now() - new Date(parseInt(revalidationFileContents)).getTime()) / 1000
+    aggregateData.revalidation.lastSuccess = elapsedSinceLastRun
   }
 
   // return the data
