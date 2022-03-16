@@ -36,9 +36,13 @@
             </v-card>
           </v-dialog>
         </div>
+        <h2 class="block text-gray-700 text-xl font-bold mb-2">Quick start guide</h2>
+        <div class="block text-gray-700 text-sm mb-5">
+          For those who want to get right to the point, <a href="https://github.com/qrtp/solana-discord-verification-bot/wiki/Setup-your-NFT-project">this is the guide for you</a>. 
+        </div>
         <h2 class="block text-gray-700 text-xl font-bold mb-2">Show me how to do it</h2>
         <div class="block text-gray-700 text-sm mb-5">
-          We've provided this video to show you how to get your Solana NFT project up and running with our tools in just 10 minutes.
+          We've provided a video to show you how to get your Solana NFT project up and running with our tools in just 10 minutes.
         </div>
         <iframe width="100%" height="323" src="https://www.youtube.com/embed/QFRDIN4athM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>

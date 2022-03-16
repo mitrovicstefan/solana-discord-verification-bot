@@ -3,7 +3,6 @@
     <v-app-bar
       color="#fcb69f"
       dark
-      shrink-on-scroll
       src="https://picsum.photos/1920/1080?random"
       scroll-target="#scrolling"
     >
@@ -13,10 +12,11 @@
           gradient="to top right, rgba(19,84,122,.5), rgba(128,208,199,.8)"
         ></v-img>
       </template>
+      <v-app-bar-nav-icon @click="drawer = true"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ this.$config.project_name }} | Solana Tools</v-toolbar-title>
       <v-spacer></v-spacer>
       <div>
-        <div class="flex overflow-hidden duration-200 transition-height md:h-auto" :class="isExpanded ? 'h-500' : 'h-0'">
+        <div class="flex overflow-hidden transition-height md:h-auto h-0">
           <ul class="flex flex-col list-none md:flex-row">
             <li v-for="route in routes" :key="route.href" class="nowrap py-1 text-right">
               <a :href="route.href" class="px-3 navlink">
@@ -27,20 +27,38 @@
         </div>
       </div>
     </v-app-bar>
+    <v-navigation-drawer v-model="drawer" class="blue-grey darken-4" dark absolute temporary>
+      <v-list nav dense>
+        <v-list-item-group active-class="white--text text--accent-4">
+          <v-list-item v-for="route in mobileRoutes" :key="route.href" :href="route.href" link>
+            <v-list-item-icon>
+              <v-icon>{{ route.icon }}</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ route.label }}</v-list-item-title>
+          </v-list-item>
+        </v-list-item-group>
+      </v-list>
+    </v-navigation-drawer>
   </header>
 </template>
 
 <script>
 export default {
   data() {
-    return {
-      isExpanded: false,
-      routes: [
-        { href: "/", label: "Home" },
+    return { 
+      drawer: false,
+      routes: [ 
         { href: "/manage", label: "Manage" },
         { href: "/projects", label: "Leaderboard" },
-        { href: this.$config.about_url, label: "About" },
         { href: this.$config.upgrade_url, label: "Donate!" }
+      ],
+      mobileRoutes: [
+        { icon: "mdi-home", href: "/", label: "Home" },
+        { icon: "mdi-cog", href: "/manage", label: "Manage" },
+        { icon: "mdi-file-document", href: "https://github.com/qrtp/solana-discord-verification-bot/wiki", label: "Documentation" },
+        { icon: "mdi-table", href: "/projects", label: "Leaderboard" },
+        { icon: "mdi-information", href: this.$config.about_url, label: "About the team" },
+        { icon: "mdi-hand-coin", href: this.$config.upgrade_url, label: "Donate!" }
       ]
     };
   }
