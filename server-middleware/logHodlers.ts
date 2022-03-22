@@ -652,7 +652,7 @@ const reloadHolders = async (project: any) => {
       var lastTx = await getLastTransaction(holder.publicKey)
       if (holder.lastTx == lastTx) {
         logger.info(`holder ${JSON.stringify(holder)} already processed last tx ${lastTx}`)
-        return 200
+        continue
       }
 
       // determine currently held roles
