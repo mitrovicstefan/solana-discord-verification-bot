@@ -142,7 +142,7 @@ if (process.env.REVALIDATION_MODE == "true") {
     try {
 
       // concurrency control
-      var maxConcurrent = 1
+      var maxConcurrentProjects = 1
       var promises = []
 
       // load projets and validate holders 
@@ -162,7 +162,7 @@ if (process.env.REVALIDATION_MODE == "true") {
         }())
 
         // throttle concurrency
-        if (promises.length == maxConcurrent) {
+        if (promises.length == maxConcurrentProjects) {
           logger.info(`waiting for ${promises.length} projects to complete`)
           await Promise.all(promises)
           promises = []
@@ -546,7 +546,7 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
   if (tokenList) {
 
     // concurrency control
-    var maxConcurrent = 25
+    var maxConcurrentMetadata = 25
     var promises = []
 
     // iterate the available tokens for this wallet
@@ -567,7 +567,7 @@ const getHodlerWallet = async (walletAddress: string, config: any) => {
         }())
 
         // throttle concurrency
-        if (promises.length == maxConcurrent) {
+        if (promises.length == maxConcurrentMetadata) {
           logger.info(`wallet ${walletAddress} waiting for ${promises.length} NFTs to complete processing`)
           await Promise.all(promises)
           promises = []
@@ -634,6 +634,7 @@ const reloadHolders = async (project: any) => {
   var metrics = {
     added: 0,
     removed: 0,
+    skipped: 0,
     unchanged: 0,
     error: 0
   }
@@ -652,6 +653,8 @@ const reloadHolders = async (project: any) => {
       var lastTx = await getLastTransaction(holder.publicKey)
       if (holder.lastTx == lastTx) {
         logger.info(`holder ${JSON.stringify(holder)} already processed last tx ${lastTx}`)
+        updatedHodlerList.push(holder)
+        metrics.skipped++
         continue
       }
 
