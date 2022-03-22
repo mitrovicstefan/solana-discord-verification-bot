@@ -13,7 +13,7 @@
         ></v-img>
       </template>
       <v-app-bar-nav-icon @click="drawer = true"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ this.$config.project_name }} | Solana Tools</v-toolbar-title>
+      <span class="title text-no-wrap">{{ this.$config.project_name }} | Solana Tools</span>
       <v-spacer></v-spacer>
       <div>
         <div class="flex overflow-hidden transition-height md:h-auto h-0">
@@ -65,16 +65,22 @@ export default {
 };
 </script>
 <style>
-  .navlink {
+  .title {
     @apply text-white text-lg font-semibold
+  }
+  .navlink {
+    @apply text-white text-base
   }
   .navlink:link{
-    @apply text-white text-lg font-semibold
+    @apply text-white text-base
   }
   .navlink:hover{
-    @apply text-white text-lg font-semibold underline
+    @apply text-white text-base underline
   }
   .navlink:visited {
-    @apply text-white text-lg font-semibold
+    @apply text-white text-base
   }
+  .titleWidth{
+  width: 400px !important;
+}
 </style>
