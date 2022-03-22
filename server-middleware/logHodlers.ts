@@ -4,6 +4,7 @@ const app = require('express')()
 const { base58_to_binary } = require('base58-js')
 import { Request, Response } from 'express'
 import morganMiddleware from './logger/morgan'
+import { getLastTransaction } from './solscan/account'
 import { initializeStorage, list, read, write } from './storage/persist'
 const { getParsedNftAccountsByOwner } = require('@nfteyez/sol-rayz')
 const nacl = require('tweetnacl')
@@ -647,6 +648,13 @@ const reloadHolders = async (project: any) => {
 
     try {
 
+      // retrieve last transaction ID
+      var lastTx = await getLastTransaction(holder.publicKey)
+      if (holder.lastTx == lastTx) {
+        logger.info(`holder ${JSON.stringify(holder)} already processed last tx ${lastTx}`)
+        return 200
+      }
+
       // determine currently held roles
       var verifiedRoles = await getHodlerRoles(holder.publicKey, config)
 
@@ -739,8 +747,9 @@ const reloadHolders = async (project: any) => {
       // update the holder list to include only the verified roles. If there are not any
       // verified roles then do not include the holder in the updated list at all.
       if (verifiedRoles.length > 0) {
-        logger.info(`updating holder list with user ${JSON.stringify(holder)} with verified roles ${JSON.stringify(verifiedRoles)}`)
         holder.roles = verifiedRoles
+        holder.lastTx = lastTx
+        logger.info(`updating holder list with user ${JSON.stringify(holder)} with verified roles ${JSON.stringify(verifiedRoles)}`)
         updatedHodlerList.push(holder)
       } else {
         logger.info(`holder no longer has any roles ${JSON.stringify(holder)}`)
