@@ -184,7 +184,7 @@ export default Vue.extend({
         let res2
         try {
           this.step = 12
-          res2 = await axios.post('/api/logHodlers', {
+          res2 = await axios.post('/api/verify', {
             projectName: this.projectName,
             discordName: this.discordUsername,
             signature: binary_to_base58((signedMessage.signature)?signedMessage.signature:signedMessage),

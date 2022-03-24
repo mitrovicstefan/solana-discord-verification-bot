@@ -1,0 +1,102 @@
+
+const { Client, Intents } = require('discord.js')
+const loggerWithLabel = require('../logger/structured')
+import { getAllProjects, getConfig } from '../verify/project'
+
+/**
+ * Configure logging
+ */
+const logger = loggerWithLabel("discord")
+
+// Cache of discord clients available on this server
+const discordClients = new Map<any, any>()
+export var cronDiscordClientRunning = false
+
+// Lazy load clients as required
+export async function getDiscordClient(projectName: any) {
+
+    // retrieve existing config if available
+    const existingClient = discordClients.get(projectName)
+    if (existingClient) {
+        logger.info(`found existing discord client: ${projectName}`)
+        return existingClient
+    }
+
+    // get the config
+    var config = await getConfig(projectName)
+
+    // create a new client instance
+    let allIntents = new Intents()
+    allIntents.add(Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_PRESENCES, Intents.FLAGS.GUILD_MESSAGES)
+    const newClient = new Client({ intents: allIntents });
+
+    // listen for bot commands if enabled
+    if (process.env.ENABLE_BOT_COMMANDS) {
+        let prefix = "!";
+        let redirect_url = config.discord_redirect_url;
+        newClient.on("messageCreate", (message: { content: { startsWith: (prefix: string) => boolean }, channel: any, author: any, }) => {
+
+            // Exit and stop if the prefix is not there or if user is a bot
+            if (!message.content.startsWith(prefix) || message.author.bot) return;
+
+            // only process !verify commands
+            if (message.content.startsWith(`${prefix}verify`)) {
+
+                // send the verification message to user
+                message.channel.send(`Hi ${message.author}! Visit ${redirect_url} to gain your special NFT holder role.`);
+            }
+        });
+    }
+
+    try {
+        // login to the client
+        newClient.login(config.discord_bot_token);
+
+        // wait for client to be ready
+        logger.info(`waiting for ${projectName} client to initialize`)
+        for (var i = 0; i < 10; i++) {
+            if (await newClient.guilds.cache.get(config.discord_server_id)) {
+                logger.info(`${projectName} client is ready!`)
+
+                // store the global config
+                logger.info(`adding new discord client: ${projectName}`)
+                discordClients.set(projectName, newClient)
+                return newClient
+            }
+            await new Promise(r => setTimeout(r, 500));
+        }
+    } catch (e) {
+        logger.info(`error logging into ${projectName} client`, e)
+    }
+
+    // getting here means an error
+    logger.info(`client ${projectName} was not initialized`)
+    return null
+}
+
+// Retrieves the current list of known discord clients
+export function getAllDiscordClients() {
+    return discordClients
+}
+
+// Query project list and retrieve all discord clients
+export async function loadAllDiscordClients() {
+    logger.info("loading all projects to initialize discord clients")
+    try {
+        cronDiscordClientRunning = true
+        var allProjects = await getAllProjects()
+        logger.info("retrieved projects", allProjects.length)
+        for (var i = 0; i < allProjects.length; i++) {
+            try {
+                logger.info(`initializing client: ${allProjects[i]}`)
+                await getDiscordClient(allProjects[i])
+            } catch (e1) {
+                logger.info(`error loading client for project ${allProjects[i]}`, e1)
+            }
+        }
+    } catch (e) {
+        logger.info("error retrieving projects", e)
+    }
+    cronDiscordClientRunning = false
+    return discordClients
+}
