@@ -566,6 +566,47 @@ app.post('/updateProject', async (req: any, res: Response) => {
   return res.json(config)
 })
 
+// Endpoint to retrieve vote data viewable by a given user 
+app.post('/getProjectVotes', async (req: any, res: Response) => {
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
+    return res.sendStatus(400)
+  }
+
+  // validate project exists
+  const config = await getConfig(req.body.project)
+  if (!config) {
+    logger.info(`project does not exist: ${req.body.project}`)
+    return res.sendStatus(404)
+  }
+
+  // ensure user has valid role in this project
+  var verifiedRoles = await getHodlerRoles(publicKeyString, config)
+  if (verifiedRoles.length == 0) {
+    logger.info("user not verified: " + publicKeyString)
+    return res.sendStatus(401)
+  }
+
+  // todo - actually build data of this format.
+  var votes = [
+    {
+      id: "123",
+      title: "do you think yes or no?",
+      expired: false,
+      responded: false,
+      choices: [
+        "yes",
+        "no"
+      ]
+    }
+  ]
+
+  return res.json(votes)
+})
+
 // Endpoint to validate a wallet and add role(s) to Discord user
 app.post('/verify', async (req: Request, res: Response) => {
 
