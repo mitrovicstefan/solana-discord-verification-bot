@@ -652,9 +652,28 @@ app.post('/verify', async (req: Request, res: Response) => {
         logger.info(`wallet ${publicKeyString} error retrieving role information ${verifiedRoles[i]}`)
         continue
       }
+
+      // add role to user account
       await doer.roles.add(role)
       logger.info(`wallet ${publicKeyString} successfully added user ${discordName} role ${verifiedRoles[i]}`)
-      rolesAdded.push(verifiedRoles[i])
+      rolesAdded.push({
+        id: verifiedRoles[i],
+        name: role.name
+      })
+
+      // save name of role if it has changed
+      try {
+        if (!config.discord_role_names) {
+          config.discord_role_names = JSON.parse('{}')
+        }
+        if (config.discord_role_names[verifiedRoles[i]] != role.name) {
+          logger.info(`updating config with project role name ${verifiedRoles[i]}=${role.name}`)
+          config.discord_role_names[verifiedRoles[i]] = role.name
+          updatedConfig = true
+        }
+      } catch (e) {
+        logger.info("error storing role name", e)
+      }
     }
 
     // write the config if updated

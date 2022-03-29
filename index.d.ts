@@ -7,6 +7,7 @@ declare global {
       isPhantom: boolean,
       connect: () => void,
       signMessage: (message: Uint8Array, encoding: string) => any
-    }
+    },
+    Slope?: any
   }
 }

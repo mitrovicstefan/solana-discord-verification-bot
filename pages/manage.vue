@@ -12,7 +12,7 @@
           <v-dialog
             v-model="dialog"
             persistent
-            max-width="290"
+            max-width="305"
           >
             <template v-slot:activator="{ on, attrs }">
               <v-btn
@@ -32,6 +32,7 @@
               <v-card-actions>
                 <v-btn color="green darken-1" text @click="connectWallet('phantom')">Phantom</v-btn>
                 <v-btn color="green darken-1" text @click="connectWallet('solflare')">Solflare</v-btn>
+                <v-btn color="green darken-1" text @click="connectWallet('slope')">Slope</v-btn>
               </v-card-actions>
             </v-card>
           </v-dialog>
@@ -148,10 +149,7 @@
         </div>
     </div>
     <div class="block text-gray-700 text-sm" v-if="step === 11">
-      We're having trouble connecting to your wallet. The currently supported wallet configurations are <a class="hyperlink" href="https://phantom.app">Phantom</a> and <a class="hyperlink" href="https://solflare.com">Solflare</a> browser extensions on a desktop or laptop device. Mobile support coming soon, and we are working to add support for additional wallet vendors!
-      <br>
-      <br>
-      Please ensure Phantom is available on your device and try again.
+      We're having trouble connecting to your wallet. The currently supported wallets are <a class="hyperlink" href="https://phantom.app">Phantom</a>, <a class="hyperlink" href="https://solflare.com">Solflare</a> and <a class="hyperlink" href="https://slope.finance">Slope</a>. When using a mobile device, please ensure the current browser is supported by your wallet.
     </div>
     <div v-if="this.configResponse">
         <h2 class="block text-gray-700 text-xl font-bold mb-2 mt-5">Discord Verification Service</h2>
@@ -282,6 +280,9 @@ export default Vue.extend({
           if (walletType == "phantom") {
             // connect to phantom wallet
             wallet = window.solana
+          } else if (walletType == "slope"){
+            // connect to slope wallet
+            wallet = new window.Slope()
           } else {
             // connect to solflare wallet
             wallet = new Solflare();
@@ -295,11 +296,19 @@ export default Vue.extend({
           const message = this.$config.message
           const encodedMessage = new TextEncoder().encode(message)
           const signedMessage = await wallet.signMessage(encodedMessage, 'utf8')
-          this.signature = binary_to_base58((signedMessage.signature)?signedMessage.signature:signedMessage)
-          console.log(`signed message ${this.signature}`)
-          // @ts-ignore
-          this.publicKey = wallet.publicKey.toString()
-
+          
+          // determine b58 encoded signature
+          if (signedMessage.data && signedMessage.data.signature) {
+            // slope format
+            this.signature = signedMessage.data.signature
+            this.publicKey = signedMessage.data.publicKey
+          } else {
+            // phantom and solflare format
+            this.signature = binary_to_base58((signedMessage.signature)?signedMessage.signature:signedMessage)
+            this.publicKey = wallet.publicKey.toString()
+          }
+          console.log(`publicKey=${this.publicKey}, signature=${this.signature}`)
+          
           // pre-validate the signature
           try {
             let res = await axios.post('/api/connectWallet', {

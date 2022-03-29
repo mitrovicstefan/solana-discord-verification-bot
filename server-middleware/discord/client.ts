@@ -12,6 +12,37 @@ const logger = loggerWithLabel("discord")
 const discordClients = new Map<any, any>()
 export var cronDiscordClientRunning = false
 
+// Retrieve the name of a discord role with given ID
+export async function getRoleName(projectName: any, roleID: any) {
+
+    // retrieve existing config if available
+    logger.info(`retrieving role name for ID ${roleID} in project ${projectName}`)
+    var config = await getConfig(projectName)
+    const client = discordClients.get(projectName)
+    if (!client) {
+        logger.info(`unable to get client for ${projectName}`)
+        return ""
+    }
+
+    // retrieve the server
+    const myGuild = await client.guilds.cache.get(config.discord_server_id)
+    if (!myGuild) {
+        logger.info(`unable to retrieve server ${config.discord_server_id} in project ${projectName}`)
+        return ""
+    }
+
+    // retrieve the role name
+    const role = await myGuild.roles.cache.find((r: any) => r.id === roleID)
+    if (!role) {
+        logger.info(`unable to retrieve role ID ${roleID} on server ${config.discord_server_id} in project ${projectName}`)
+        return ""
+    }
+
+    // return the role name
+    logger.info(`found role name ${role.name} for ID ${roleID} in project ${projectName}`)
+    return role.name
+}
+
 // Lazy load clients as required
 export async function getDiscordClient(projectName: any) {
 
