@@ -1,5 +1,8 @@
 const xss = require("xss")
 
+// safety to ensure large data isn't stored
+const maxStringLength = 255
+
 // converts a string to camel case
 export function toCamelCase(str: string) {
     // Lower cases the string
@@ -15,7 +18,11 @@ export function toCamelCase(str: string) {
         .replace(/ /g, '');
 }
 
-// trims whitespace and strips any XSS threats
+// trims whitespace, sanitizes and strips any XSS threats
 export function getFieldValue(v: string) {
-    return xss(v.trim())
+    var sanitizedVal = xss(v.trim())
+    if (sanitizedVal.length > maxStringLength) {
+        sanitizedVal = sanitizedVal.substring(0, maxStringLength)
+    }
+    return sanitizedVal
 }

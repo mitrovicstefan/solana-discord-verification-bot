@@ -7,7 +7,7 @@
         Project not found.
       </div>
       <div class="block text-gray-700 text-sm" v-if="step === 3"> 
-        <h2 class="block text-gray-700 text-2xl font-bold mb-5">{{projectName}}</h2>
+        <h2 class="block text-gray-700 text-2xl font-bold mb-5">{{projectName}} Sales</h2>
         <div class="flex flex-wrap -mx-4 -mb-8">
           <div v-if="this.sales.length == 0" class="px-4 mb-8">Watching for sales, but have not detected any so far!</div>
           <div v-for="sale in sales" class="md:w-1/3 px-4 mb-8"> 

@@ -34,7 +34,17 @@ export function initializeStorage() {
 export async function list(directoryPath: string, filter: string) {
     logger.info(`listing files in directory ${directoryPath}`)
     if (useCOS()) {
-        return await listCOSFiles(`${directoryPath}/${filter}`.replaceAll("./", ""))
+        var filterString = `${directoryPath}/${filter}`.replaceAll("./", "")
+        var cacheKey = `listcache-${filterString}`
+        var cacheHit = cosCache.get(cacheKey)
+        if (cacheHit) {
+            logger.info(`cache hit listing files: ${filterString}`)
+            return cacheHit
+        }
+        var listResults = await listCOSFiles(filterString)
+        cosCache.set(cacheKey, listResults)
+        logger.info(`retrieved new file list for: ${filterString}`)
+        return listResults
     }
     try {
         var matchingFiles: string[] = []
