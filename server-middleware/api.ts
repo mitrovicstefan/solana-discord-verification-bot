@@ -1,14 +1,15 @@
 const bodyParser = require('body-parser')
 const app = require('express')()
 import { Request, Response } from 'express'
-import { cronDiscordClientRunning, getAllDiscordClients, getDiscordClient, loadAllDiscordClients } from './discord/client'
+import { getDiscordClient } from './discord/client'
 import morganMiddleware from './logger/morgan'
 import { initializeStorage, read, write } from './storage/persist'
 import { getHodlerRoles, isSignatureValid, reloadHolders } from './verify/holder'
 import { getConfigFilePath, getHodlerFilePath, getPublicKeyFilePath, getRevalidationSuccessPath, getSalesFilePath, getSalesTrackerLockPath, getSalesTrackerSuccessPath } from './verify/paths'
 import { getAllProjects, getConfig, getHodlerList } from './verify/project'
 import { getFieldValue, toCamelCase } from './verify/util'
-const cron = require('node-cron')
+import { createVote, deleteVote, getProjectVotesForUser } from './vote/project'
+import { castVote } from './vote/user'
 const loggerWithLabel = require('./logger/structured')
 
 /**
@@ -19,14 +20,16 @@ const defaultRedactedString = "content-redacted"
 
 
 /**
+   * Configure storage layer
+   */
+initializeStorage()
+
+
+/**
  * Choose processing mode
  */
 if (process.env.REVALIDATION_MODE == "true") {
   const revalidate = async function () {
-
-    // wait for startup prereqs
-    initializeStorage()
-    await loadAllDiscordClients()
 
     // start timestamp for monitoring
     var startTimestamp = Date.now()
@@ -77,46 +80,6 @@ if (process.env.REVALIDATION_MODE == "true") {
 
   // execute the batch revalidation
   revalidate()
-
-} else {
-
-  /**
-   * Configure storage layer
-   */
-  initializeStorage()
-
-  /**
-   * Retrieve discord clients at server startup
-   */
-  loadAllDiscordClients()
-
-  /**
-   * Background jobs
-   */
-
-  // ensure the Discord client is loaded for all of the configured projects. This is 
-  // important for clients to be initialized, so that "!verify" messages are received
-  // by the server and responses provided to discord users.
-  cron.schedule('*/5 * * * *', async function () {
-
-    // start timestamp for monitoring
-    var startTimestamp = Date.now()
-
-    try {
-      // don't run if another job is already running
-      if (cronDiscordClientRunning) {
-        logger.info("client initialization is already running")
-        return
-      }
-      await loadAllDiscordClients()
-    } catch (e2) {
-      logger.info("error retrieving project list", e2)
-    }
-
-    // set flag to indicate job is no longer running
-    var elapsed = Date.now() - startTimestamp
-    logger.info(`discord client initialization completed in ${elapsed}ms`)
-  })
 }
 
 /**
@@ -262,12 +225,17 @@ app.get('/getProjectHolders', async (req: Request, res: Response) => {
 // Endpoint to retrieve all known projects
 app.get('/getProjects', async (req: Request, res: Response) => {
 
-  var discordClients = await getAllDiscordClients()
+  // concurrency control
+  var maxConcurrentProjects = 10
+  var promises = []
+
+  // initialize project information
+  var allProjects = await getAllProjects()
   var projectData: any[] = []
   var aggregateData: any = {
     projects: {
       active: 0,
-      all: discordClients.size,
+      all: allProjects.length,
       holder: 0
     },
     sales: 0,
@@ -280,39 +248,57 @@ app.get('/getProjects', async (req: Request, res: Response) => {
       lastSuccess: 0
     }
   }
-  for (const project of discordClients.keys()) {
-    try {
 
-      // get config and skip if not yet any verifications
-      var config = await getConfig(project)
-      if (!req.query["all"] && config.verifications < 2) {
-        continue
-      }
+  // iterate all the projects
+  for (var i = 0; i < allProjects.length; i++) {
 
-      // print the data and aggregate
-      var data = {
-        project: project,
-        project_friendly_name: config.project_friendly_name,
-        project_thumbnail: config.project_thumbnail,
-        project_twitter_name: config.project_twitter_name,
-        project_website: config.project_website,
-        discord_url: config.discord_url,
-        connected_twitter_name: config.connected_twitter_name,
-        is_holder: config.is_holder,
-        verifications: config.verifications,
-        sales: (config.sales) ? config.sales : 0
+    // schedule to the concurrent queue
+    promises.push(async function () {
+      try {
+
+        // get config and skip if not yet any verifications
+        var project = allProjects[i]
+        var config = await getConfig(project)
+        if (!req.query["all"] && config.verifications < 2) {
+          return
+        }
+
+        // print the data and aggregate
+        var data = {
+          project: project,
+          project_friendly_name: config.project_friendly_name,
+          project_thumbnail: config.project_thumbnail,
+          project_twitter_name: config.project_twitter_name,
+          project_website: config.project_website,
+          discord_url: config.discord_url,
+          connected_twitter_name: config.connected_twitter_name,
+          is_holder: config.is_holder,
+          verifications: config.verifications,
+          sales: (config.sales) ? config.sales : 0
+        }
+        projectData.push(data)
+        if (config.is_holder) {
+          aggregateData.projects.holder++
+        }
+        aggregateData.projects.active++
+        aggregateData.verifications += data.verifications
+        aggregateData.sales += data.sales
+      } catch (e) {
+        logger.info("error rendering project", e)
       }
-      projectData.push(data)
-      if (config.is_holder) {
-        aggregateData.projects.holder++
-      }
-      aggregateData.projects.active++
-      aggregateData.verifications += data.verifications
-      aggregateData.sales += data.sales
-    } catch (e) {
-      logger.info("error rendering project", e)
+    }())
+
+    // throttle concurrency
+    if (promises.length == maxConcurrentProjects) {
+      logger.info(`waiting for ${promises.length} projects to complete`)
+      await Promise.all(promises)
+      promises = []
     }
   }
+
+  // wait for queue to complete
+  logger.info(`waiting for ${promises.length} remaining projects to complete`)
+  await Promise.all(promises)
 
   // sort project data by sales and verifications
   projectData.sort((a: any, b: any) => (a.verifications + a.sales < b.verifications + b.sales) ? 1 : ((b.verifications + b.sales < a.verifications + a.sales) ? -1 : 0))
@@ -467,7 +453,7 @@ app.post('/updateProject', async (req: any, res: Response) => {
   var projectName = ""
   try {
     var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
-    if (!userProject || userProject.projectName == "") {
+    if (!userProject || userProject.projectName != req.body.project) {
       logger.info(`address ${req.body.publicKey} does not own a project`)
       return res.sendStatus(401)
     }
@@ -566,7 +552,98 @@ app.post('/updateProject', async (req: any, res: Response) => {
   return res.json(config)
 })
 
-// Endpoint to retrieve vote data viewable by a given user 
+app.post('/deleteProjectVote', async (req: any, res: Response) => {
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
+    return res.sendStatus(400)
+  }
+
+  // validate user owns the project
+  try {
+    var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
+    if (!userProject || userProject.projectName != req.body.project) {
+      logger.info(`address ${req.body.publicKey} does not own a project`)
+      return res.sendStatus(401)
+    }
+  } catch (e) {
+    logger.info("user does not own project", e)
+    return res.sendStatus(401)
+  }
+
+  // save the project vote
+  if (!await deleteVote(req.body.project, req.body.voteID)) {
+    logger.info(`unable to delete project ${req.body.project} vote ${req.body.voteID}`)
+    return res.sendStatus(409)
+  }
+  return res.sendStatus(200)
+})
+
+app.post('/createProjectVote', async (req: any, res: Response) => {
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
+    return res.sendStatus(400)
+  }
+
+  // validate user owns the project
+  try {
+    var userProject = JSON.parse(await read(getPublicKeyFilePath(req.body.publicKey)))
+    if (!userProject || userProject.projectName != req.body.project) {
+      logger.info(`address ${req.body.publicKey} does not own a project`)
+      return res.sendStatus(401)
+    }
+  } catch (e) {
+    logger.info("user does not own project", e)
+    return res.sendStatus(401)
+  }
+
+  // sanitize the inputs before passing to create function
+  try {
+    var title = getFieldValue(req.body.title)
+    var expiresInDaysStr = getFieldValue(req.body.expiryTime)
+    var expiryTime = Date.now() + (1000 * 60 * 60 * 24 * parseInt(expiresInDaysStr))
+    var requiredRoles: any = []
+    for (var i = 0; i < req.body.requiredRoles.length; i++) {
+      var v = getFieldValue(req.body.requiredRoles[i])
+      if (!v) {
+        continue
+      }
+      requiredRoles.push(v)
+    }
+    var choices: any = []
+    for (var i = 0; i < req.body.choices.length; i++) {
+      var v = getFieldValue(req.body.choices[i])
+      if (!v) {
+        continue
+      }
+      choices.push(v)
+    }
+
+    // validate the input
+    if (choices.length == 0 || requiredRoles.length == 0 || !title || !expiresInDaysStr) {
+      logger.info(`invalid input received: ${JSON.stringify(req.body)}`)
+      return res.sendStatus(400)
+    }
+
+    // save the project vote
+    if (!await createVote(req.body.project, title, expiryTime, requiredRoles, choices)) {
+      logger.info(`unable to save project ${req.body.project} vote`)
+      return res.sendStatus(500)
+    }
+  } catch (e) {
+    logger.info(`invalid input ${JSON.stringify(req.body)}`, e)
+    return res.sendStatus(400)
+  }
+
+  // successfully created the vote
+  return res.sendStatus(201)
+})
+
 app.post('/getProjectVotes', async (req: any, res: Response) => {
 
   // Validates signature sent from client
@@ -576,35 +653,26 @@ app.post('/getProjectVotes', async (req: any, res: Response) => {
     return res.sendStatus(400)
   }
 
-  // validate project exists
-  const config = await getConfig(req.body.project)
-  if (!config) {
-    logger.info(`project does not exist: ${req.body.project}`)
-    return res.sendStatus(404)
+  // retrieve project votes
+  var projectVotes = await getProjectVotesForUser(req.body.project, publicKeyString)
+  return res.json(projectVotes)
+})
+
+// Endpoint to cast vote
+app.post('/castProjectVote', async (req: any, res: Response) => {
+
+  // Validates signature sent from client
+  var publicKeyString = req.body.publicKey
+  if (!isSignatureValid(publicKeyString, req.body.signature, process.env.MESSAGE)) {
+    logger.info(`signature invalid for public key ${publicKeyString}`)
+    return res.sendStatus(400)
   }
 
-  // ensure user has valid role in this project
-  var verifiedRoles = await getHodlerRoles(publicKeyString, config)
-  if (verifiedRoles.length == 0) {
-    logger.info("user not verified: " + publicKeyString)
-    return res.sendStatus(401)
+  // cast the vote for this user selection
+  if (await castVote(req.body.project, req.body.id, publicKeyString, req.body.vote)) {
+    return res.sendStatus(201)
   }
-
-  // todo - actually build data of this format.
-  var votes = [
-    {
-      id: "123",
-      title: "do you think yes or no?",
-      expired: false,
-      responded: false,
-      choices: [
-        "yes",
-        "no"
-      ]
-    }
-  ]
-
-  return res.json(votes)
+  return res.sendStatus(403)
 })
 
 // Endpoint to validate a wallet and add role(s) to Discord user

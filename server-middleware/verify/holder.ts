@@ -30,6 +30,34 @@ export function isSignatureValid(publicKeyString: string, signature: any, messag
     return nacl.sign.detached.verify(encodedMessage, encryptedSignature, publicKey)
 }
 
+// attempts to retrieve previously stored roles and falls back to on-chain query if no roles
+// can be found locally
+export async function getHodlerRolesWithFallback(project: string, walletAddress: string, config: any) {
+    var roles = await getHolderStoredRoles(project, walletAddress)
+    if (!roles || roles.length == 0) {
+        roles = await getHodlerRoles(walletAddress, config)
+    }
+    return roles
+}
+
+// determines holder roles from previously stored values
+export async function getHolderStoredRoles(project: string, walletAddress: string) {
+    var roles: any = []
+    try {
+        var hodlerList = await getHodlerList(project)
+        for (let n of hodlerList) {
+            if (n.publicKey == walletAddress) {
+                logger.info(`found stored roles for user ${walletAddress}: ${JSON.stringify(n.roles)}`)
+                roles = n.roles
+                break
+            }
+        }
+    } catch (e) {
+        logger.info("error retrieving holder roles", e)
+    }
+    return roles
+}
+
 // determines if the holder is verified
 export async function getHodlerRoles(walletAddress: string, config: any) {
 
@@ -397,7 +425,7 @@ function randomIntFromInterval(min: number, max: number) {
 
 // inspects a holder's wallet for NFTs and SPL tokens matching the criteria
 // specified in the config map
-async function getHodlerWallet(walletAddress: string, config: any) {
+export async function getHodlerWallet(walletAddress: string, config: any) {
 
     // initialize an empty wallet to be returned
     let nfts: any[] = [];

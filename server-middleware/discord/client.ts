@@ -1,7 +1,7 @@
 
 const { Client, Intents } = require('discord.js')
 const loggerWithLabel = require('../logger/structured')
-import { getAllProjects, getConfig } from '../verify/project'
+import { getConfig } from '../verify/project'
 
 /**
  * Configure logging
@@ -10,7 +10,6 @@ const logger = loggerWithLabel("discord")
 
 // Cache of discord clients available on this server
 const discordClients = new Map<any, any>()
-export var cronDiscordClientRunning = false
 
 // Retrieve the name of a discord role with given ID
 export async function getRoleName(projectName: any, roleID: any) {
@@ -103,31 +102,4 @@ export async function getDiscordClient(projectName: any) {
     // getting here means an error
     logger.info(`client ${projectName} was not initialized`)
     return null
-}
-
-// Retrieves the current list of known discord clients
-export function getAllDiscordClients() {
-    return discordClients
-}
-
-// Query project list and retrieve all discord clients
-export async function loadAllDiscordClients() {
-    logger.info("loading all projects to initialize discord clients")
-    try {
-        cronDiscordClientRunning = true
-        var allProjects = await getAllProjects()
-        logger.info("retrieved projects", allProjects.length)
-        for (var i = 0; i < allProjects.length; i++) {
-            try {
-                logger.info(`initializing client: ${allProjects[i]}`)
-                await getDiscordClient(allProjects[i])
-            } catch (e1) {
-                logger.info(`error loading client for project ${allProjects[i]}`, e1)
-            }
-        }
-    } catch (e) {
-        logger.info("error retrieving projects", e)
-    }
-    cronDiscordClientRunning = false
-    return discordClients
 }

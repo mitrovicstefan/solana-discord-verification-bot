@@ -4,7 +4,7 @@
         <img class="mx-auto" src="/loading.gif">
     </div>
     <div v-if="step > 0">
-      <h2 class="block text-gray-700 text-2xl font-bold mb-2">{{projectName}} Vote</h2>
+      <h2 class="block text-gray-700 text-2xl font-bold mb-2">{{projectName}} Voting</h2>
     </div>
     <div v-if="step === 1">
         <div class="block text-gray-700 text-sm mb-5">
@@ -27,7 +27,7 @@
               </v-btn>
             </template>
             <v-card>
-              <v-card-title class="text-h5">
+              <v-card-title>
                 Choose a Wallet
               </v-card-title>
               <v-card-text>The wallet will be used as login credentials for your vote.</v-card-text>
@@ -41,7 +41,6 @@
         </div>
     </div>
     <div v-if="step === 2">
-      <h2 class="block text-gray-700 text-xl font-bold mb-2">Signature request</h2>
         <div class="block text-gray-700 text-sm mb-2">
           Please sign the message to verify that you're the owner of your wallet.
           <br>
@@ -50,13 +49,48 @@
         </div>
     </div>
     <div v-if="step === 3">
-      <form @submit.prevent="submitForm" >
-        <div class="block text-gray-700 text-sm mb-2">
-          Print out the form details...
-        </div>
-        <v-btn color="primary" @click="submitForm">Save</v-btn>
-        <v-btn color="grey" @click="disconnectWallet">Disconnect</v-btn>
-      </form>
+      <div v-if="!voteConfiguration" class="block text-gray-700 text-sm mb-2">
+        No votes found associated with NFTs in your wallet.
+      </div>
+      <div v-if="voteConfiguration.length > 0" class="block text-gray-700 text-sm mb-2">
+        Each {{projectName}} NFT in your wallet inceases your voting power. You can change
+        your vote selection as long as the vote is live. Results will be displayed after the vote is closed.
+      </div>
+      <v-btn color="grey" @click="disconnectWallet">Disconnect</v-btn>
+      <div v-for="vote in voteConfiguration" class="mt-8">
+        <v-card>
+          <v-card-title class="text-h5">{{vote.title}}</v-card-title>
+          <v-card-text>
+            <div>{{vote.expiryRelative}}</div>
+            <div class="text-xs">{{vote.votes}} votes</div>
+          </v-card-text>
+          <div v-if="!vote.isExpired">
+            <v-chip-group
+              v-model="voteResponse[vote.id]"
+              active-class="primary accent-4 white--text"
+            >
+              <div class="ml-4 mb-4" v-for="choice in vote.choices">
+                <v-chip @click="castVote(vote.id, choice.value)">{{choice.value}}</v-chip>
+              </div>
+            </v-chip-group>
+          </div>
+          <div v-if="vote.isMutable">
+            <v-card-actions>
+              <v-btn color="green darken-1" text @click="deleteVote(vote.id)">Delete</v-btn>
+            </v-card-actions>
+          </div>
+          <div v-if="vote.isExpired">
+            <v-sparkline
+              :labels="voteLabels[vote.id]"
+              :value="voteResult[vote.id]"
+              :gradient="['#E1F5FE','#03A9F4']"
+              auto-line-width=true
+              padding="16"
+              type="bar"
+            ></v-sparkline>
+          </div>
+        </v-card>
+      </div>
     </div>
     <div v-if="step === 4">
       <div class="block text-gray-700 text-sm mb-2">
@@ -76,7 +110,7 @@
     </div>
     <div v-if="step === 7">
       <div class="block text-gray-700 text-sm mb-2">
-        No votes found.
+        No votes have been created for this project
       </div>
     </div>
     <div class="block text-gray-700 text-sm" v-if="step === 11">
@@ -90,6 +124,7 @@ import Vue from 'vue'
 import axios from 'axios'
 import Solflare from '@solflare-wallet/sdk';
 const { binary_to_base58 } = require('base58-js')
+var hdate = require('human-date')
 
 export default Vue.extend({
   data() {
@@ -100,7 +135,10 @@ export default Vue.extend({
       project: '',
       projectConfig: null,
       projectName: '',
-      voteConfigResponse: null
+      voteResponse: {},
+      voteResult: {},
+      voteLabels: {},
+      voteConfiguration: null
     }
   },
   async mounted() {
@@ -141,11 +179,53 @@ export default Vue.extend({
         let res = await axios.get('/api/disconnectWallet')
         this.publicKey = ''
         this.signature = ''
-        this.voteConfigResponse = null
+        this.voteConfiguration = null
       } catch (e) {
         console.log("signature could not be validated", e) 
       }
       this.step = 1
+    },
+    async castVote(id:string, value:string) {
+      let res
+        try{
+          console.log(`voting ${value} for ${id}`)
+          res = await axios.post('/api/castProjectVote', {
+            signature: this.signature,
+            publicKey: this.publicKey,
+            // @ts-ignore
+            project: this.project,
+            // @ts-ignore
+            id: id,
+            vote: value,
+          })
+        } catch(e) {
+          console.log("API ERROR", e)
+          this.step = 4
+          return
+        }
+        console.log("vote status:" + res.status)
+    },
+    async deleteVote(voteID:string) {
+      let res
+        try{
+          console.log(`deleting vote ${voteID}`)
+          res = await axios.post('/api/deleteProjectVote', {
+            signature: this.signature,
+            publicKey: this.publicKey,
+            // @ts-ignore
+            project: this.project,
+            // @ts-ignore
+            voteID: voteID
+          })
+        } catch(e) {
+          console.log("API ERROR", e)
+          this.step = 4
+          return
+        }
+        console.log("vote status:" + res.status)
+        if (res.status == 200) {
+          location.reload()
+        }
     },
     async connectWallet(walletType:string) {
       
@@ -205,14 +285,41 @@ export default Vue.extend({
 
       // determine if there is an existing project for user 
       let res 
-      try{   
+      try{
+        this.step = 0
         res = await axios.post('/api/getProjectVotes', {
             signature: this.signature,
             publicKey: this.publicKey,
             // @ts-ignore
             project: this.project
           })
-        this.voteConfigResponse = res.data
+        for (var i=0; i < res.data.length; i++) {
+
+          // determine expiry status
+          res.data[i].isExpired = Date.now() > res.data[i].expiryTime
+          var endingVerb = (res.data[i].isExpired) ? "ended" : "ends"
+          res.data[i].expiryRelative = endingVerb + " " + hdate.relativeTime(new Date(res.data[i].expiryTime))
+
+          // determine selection status
+          // @ts-ignore
+          this.voteResponse[res.data[i].id] = res.data[i].responded
+
+          // determine vote results
+          // @ts-ignore
+          this.voteResult[res.data[i].id] = []
+          // @ts-ignore
+          this.voteLabels[res.data[i].id] = []
+          for (var j=0; j < res.data[i].choices.length; j++) {
+            // @ts-ignore
+            this.voteResult[res.data[i].id].push(res.data[i].choices[j].count)
+            // @ts-ignore
+            if (res.data[i].choices[j].count) {
+              // @ts-ignore
+              this.voteLabels[res.data[i].id].push(`${res.data[i].choices[j].value} (${res.data[i].choices[j].count})`)
+            }
+          }
+        }
+        this.voteConfiguration = res.data
       }  catch(e) {
         console.log("retrieve project vote error", e)
       } 
@@ -224,35 +331,6 @@ export default Vue.extend({
 
       // no vote data found
       this.step = 7
-    },
-    async submitForm() {
-        let res
-        try{
-          res = await axios.post('/api/castProjectVote', {
-            signature: this.signature,
-            publicKey: this.publicKey,
-            // @ts-ignore
-            project: this.project,
-            // @ts-ignore
-            id: 123,
-            vote: 0,
-          })
-          this.voteConfigResponse = res.data
-        } catch(e) {
-            if (e.toString().includes("status code 409")) {
-              this.step = 9
-            } else if(e.toString().includes("status code 403")) {
-              this.step = 8
-            } else if(e.toString().includes("status code 400")) {
-              this.step = 10
-            } else {
-              console.log("API ERROR", e)
-              this.step = 4
-            }
-            return
-        }
-        console.log("Status:" + res.status)
-        this.step = 7
     }
   } 
 })

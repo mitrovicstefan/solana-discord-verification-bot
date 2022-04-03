@@ -6,6 +6,14 @@ export function getConfigFilePath(name: any) {
     return `./config/prod-${name}.json`
 }
 
+export function getVoteFilePath(project: any) {
+    return `./config/vote-${project}.json`
+}
+
+export function getVoteResultsFilePath(project: any, id: any) {
+    return `./config/vote-results-${project}-${id}.json`
+}
+
 export function getPublicKeyFilePath(address: any) {
     return `./config/publicKey-${address}.json`
 }
