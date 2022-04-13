@@ -1,13 +1,15 @@
 # base stage
-FROM node:14 as base
+FROM node:16 as base
 WORKDIR /app
 
 RUN yarn global add @vue/cli
 
+# setup environment variables
 RUN env
+ENV HOST=0.0.0.0
 
 COPY package.json yarn.lock ./
-RUN yarn
 COPY . /app
-EXPOSE 8084
-CMD ['yarn', 'dev']
+RUN yarn
+EXPOSE 3000
+CMD ["yarn","start"]

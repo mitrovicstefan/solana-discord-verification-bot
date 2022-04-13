@@ -1,121 +1,36 @@
-<template class="main">
-  <div>
-    <div class="twitter">
-      Made By <a href="https://twitter.com/ProdEnv" class="underline">mitr◎vich 💖</a>. <a class="underline" href="https://twitter.com/ProdEnv">Twitter</a> | <a class="underline" href="https://github.com/mitrovicstefan">Github</a>
+<template >
+    <div>
+        <h2 class="block text-gray-700 text-2xl font-bold mb-2">Welcome!</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+            These are the FREE Solana NFT project tools you've been looking for. You can <a class=hyperlink href="/manage">setup your project</a> in less than 10 minutes!
+        </div>
+        <div class="mb-2">
+            <img class="rounded shadow-md" src="/feature-comparison.png" alt="">
+        </div>
+        <h2 class="block text-gray-700 text-lg font-bold mb-2">What is Discord verification?</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+            The Discord verification service allows custom roles to be added to users who hold a specific NFT in their Solana wallet. These roles can be used to setup private channels and special features on your Discord server only available to your holders. 
+            <br>
+            <br>
+            Once your project is configured, users simply navigate to a custom URL to verify their NFT status on your Discord server. Your verified users are continuously revalidated to ensure the role is removed if your NFT is no longer in their wallet.
+        </div>
+        <h2 class="block text-gray-700 text-lg font-bold mb-2">What is sales tracking?</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+            Sales tracking continuously monitors your NFT collection for new mints and secondary market sales. Whenever activity is detected, we update your collection page and post a message to our community <a href="https://www.twitter.com/NFT4CauseBot">Twitter sales tracking bot</a>. 
+            <br>
+            <br>
+            If you're an NFT 4 Cause NFT holder, we will also notify channels on your Discord server as well as your project's Twitter account. Custom sales notifications allow your followers to celebrate with you every time your collection exchanges hands.
+        </div>
+        <h2 class="block text-gray-700 text-lg font-bold mb-2">Why is it free?</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+            We offer these free hosted services because we believe in giving back to the Solana NFT community. Our mission is to enable projects to focus their funds on developing their community and making progress on their roadmap.
+        </div>
+        <div class="block text-gray-700 text-sm mb-2">
+            At <a class="hyperlink" href="http://www.nft4cause.app">NFT 4 Cause</a> we create socially relevant NFTs to generate funds for global nonprofits. <b>Every NFT minted or traded on the secondary market is an 80% donation!</b> Everything else funds the development of tools like this to enhance the Solana community.
+        </div>
+        <h2 class="block text-gray-700 text-lg font-bold mb-2">Opensource</h2>
+        <div class="block text-gray-700 text-sm mb-2">
+            We believe in Opensource software. All the code for our Solana NFT services is freely <a class=hyperlink href="https://github.com/qrtp/solana-discord-verification-bot">available on GitHub</a> for review, auditing and use in other projects.
+        </div>
     </div>
-    <div class="flex h-screen justify-center items-center flex-col">
-      <div class="text-center" v-if="step === 1">
-        Loading your discord username
-      </div>
-
-      <div class="text-center" v-if="step === 2">
-        Getting your username
-      </div>
-
-      <div class="text-center" v-if="step > 2">
-        <img alt="Discord profile pic" v-if="discordAvatar !== ''" class="rounded-full border-4 border-white w-20 my-0 mx-auto mb-4" :src="discordAvatar">
-        {{discordUsername}}
-      </div>
-
-      <div class="text-center" v-if="step === 3">
-        Connecting to phantom
-      </div>
-      <div class="text-center" v-if="step === 4">
-        Please sign the message, this will verify that you're the owner of your wallet.<br>
-        Review the message before signing and make sure that nothing else is requested except signature.
-      </div>
-      <div class="text-center" v-if="step === 5">
-        You're done! You can close this window now
-      </div>
-    </div>
-  </div>
 </template>
-
-<script lang="ts">
-import Vue from 'vue'
-import axios from 'axios'
-
-export default Vue.extend({
-  data() {
-    return {
-      discordUsername: '',
-      step: 1,
-      discordAvatar: '',
-    }
-  },
-
-  async mounted() {
-
-    // Get discord bearer token from url hash params
-    const url_params: {access_token?: string} = this.$route.hash.split("&")
-      .map(v => v.split("="))
-      .reduce( (pre, [key, value]) => ({ ...pre, [key]: value }), {})
-    if (!url_params.access_token) {
-      const url = `https://discord.com/api/oauth2/authorize?client_id=${this.$config.client_id}&redirect_uri=${this.$config.redirect_uri}&response_type=token&scope=identify`
-      window.location.href = url
-    }
-
-    // Get discord username from token
-    let res = {data: {username: '', discriminator: '', id: '', avatar: ''}}
-    try {
-      res = await axios.get('https://discord.com/api/users/@me', {
-        headers: {
-          'Authorization': `Bearer ${url_params.access_token}`
-        }
-      })
-    } catch (e) {
-      console.log(e)
-      return
-    }
-    this.step = 2
-    this.discordUsername = `${res.data.username}#${res.data.discriminator}`
-    this.discordAvatar = `https://cdn.discordapp.com/avatars/${res.data.id}/${res.data.avatar}.png`
-    this.step = 3
-
-    // Connects to phantom
-    let connection
-    try {
-      connection = await window.solana.connect()
-    } catch (e) {
-      console.log(e)
-    }
-
-    this.step = 4
-
-    // Signs message to verify authority
-    const message = this.$config.message
-    const encodedMessage = new TextEncoder().encode(message)
-    const signedMessage = await window.solana.signMessage(encodedMessage, 'utf8')
-
-    // Sends signature to the backend
-    let res2
-    try {
-      res2 = await axios.post('/api/logHodlers', {
-        discordName: this.discordUsername,
-        signature: signedMessage.signature,
-        // @ts-ignore I honestly didn't wanna bother with strong typing this.. Feel free if you'd like
-        publicKey: connection.publicKey.toString()
-      })
-    } catch (e) {
-      console.log("API ERROR", e)
-    }
-
-    this.step = 5
-  }
-})
-</script>
-
-<style>
-body {
-  background: #23272A;
-  color: #ffffff;
-  position: relative;
-}
-
-.twitter {
-  position: absolute;
-  width: 100%;
-  text-align: center;
-  bottom: 10px;
-}
-</style>

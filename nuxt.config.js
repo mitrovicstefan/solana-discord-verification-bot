@@ -1,15 +1,17 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: 'authorization-bot',
+    title: process.env.PRODUCT_NAME || 'NFT 4 Cause | Solana Tools',
     htmlAttrs: {
       lang: 'en'
     },
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { hid: 'description', name: 'description', content: '' },
-      { name: 'format-detection', content: 'telephone=no' }
+      { content: "NFT 4 Cause | Solana Tools", property: "og:site_name" },
+      { content: "Discord Verification Service", property: "og:title" },
+      { content: "Verify your Solana wallet holds the Discord project's NFT to gain exclusive roles. Service provided by NFT 4 Cause, where every NFT minted or traded on a secondary market is an 80% donation! Everything else funds the development of tools like this to enhance the Solana community.", property: "og:description" },
+      { content: "https://www.nft4cause.app/img/nft4c-governance-token.png", property: "og:image" }
     ],
     link: [
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
@@ -19,11 +21,17 @@ export default {
   server: {
     port: process.env.PORT || 3000
   },
-  serverMiddleware: [{path: '/api', handler: './server-middleware/logHodlers'}],
+  serverMiddleware: [
+    { path: '/api', handler: './server-middleware/api' },
+    { path: '/api/twitter', handler: './server-middleware/twitter' }
+  ],
   publicRuntimeConfig: {
-    client_id: process.env.DISCORD_CLIENT_ID,
-    redirect_uri: process.env.DISCORD_REDIRECT_URI,
-    message: process.env.MESSAGE
+    message: process.env.MESSAGE,
+    project_name: process.env.PRODUCT_NAME,
+    upgrade_url: process.env.UPGRADE_URL,
+    about_url: process.env.ABOUT_URL,
+    twitter_enabled: process.env.TWITTER_ENABLED,
+    max_free_verifications: parseInt(process.env.MAX_FREE_VERIFICATIONS)
   }
   ,
   // Global CSS: https://go.nuxtjs.dev/config-css
@@ -41,9 +49,16 @@ export default {
   buildModules: [
     // https://go.nuxtjs.dev/typescript
     '@nuxt/typescript-build',
+    // https://github.com/nuxt-community/vuetify-module
+    '@nuxtjs/vuetify',
     // https://go.nuxtjs.dev/tailwindcss
     '@nuxtjs/tailwindcss',
   ],
+
+  vuetify: {
+    optionsPath: './vuetify.options.js',
+    treeShake: true,
+  },
 
   // Modules: https://go.nuxtjs.dev/config-modules
   modules: [
